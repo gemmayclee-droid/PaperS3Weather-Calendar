@@ -11,6 +11,14 @@ extern bool useCelsius;
 extern bool nightModeSleep;
 extern String cityName;
 
+static String htmlEscape(String value) {
+    value.replace("&", "&amp;");
+    value.replace("\"", "&quot;");
+    value.replace("<", "&lt;");
+    value.replace(">", "&gt;");
+    return value;
+}
+
 void setupWiFi() {
     preferences.begin("weather", false);
     String ssid = preferences.getString("ssid", "");
@@ -77,6 +85,7 @@ void startConfigPortal() {
         String currentLat = preferences.getString("latitude", "");
         String currentLon = preferences.getString("longitude", "");
         String currentUnit = preferences.getString("tempunit", "F");
+        String currentCalendarIcs = preferences.getString("calendar_ics", "");
         bool currentNightMode = preferences.getBool("nightmode", true);
         int currentDayInterval = preferences.getInt("day_interval", 10);
         int currentNightInterval = preferences.getInt("night_interval", 60);
@@ -128,7 +137,7 @@ void startConfigPortal() {
 
         html += "</head><body>";
         html += "<div class='card'>";
-        html += "<h1>Weather Dashboard Setup</h1>";
+        html += "<h1>" + String(APP_NAME) + " Setup</h1>";
 
         // Show current settings
         if (currentCity.length() > 0) {
@@ -139,6 +148,7 @@ void startConfigPortal() {
             }
             html += "<br>Temperature: " + String(currentUnit == "C" ? "Celsius" : "Fahrenheit");
             html += "<br>Updates: " + String(currentDayInterval) + " min (day), " + String(currentNightInterval) + " min (night)";
+            html += "<br>Calendar: " + String(currentCalendarIcs.length() > 0 ? "ON" : "OFF");
             html += "<br>Night Mode: " + String(currentNightMode ? "ON" : "OFF");
             if (currentNightMode) {
                 html += " (" + String(currentNightStart) + ":00 - " + String(currentNightEnd) + ":00)";
@@ -171,6 +181,14 @@ void startConfigPortal() {
         html += "<input name='lat' placeholder='Latitude (e.g., -36.8485)' pattern='^-?\\d+\\.?\\d*$' value='" + currentLat + "'>";
         html += "<input name='lon' placeholder='Longitude (e.g., 174.7633)' pattern='^-?\\d+\\.?\\d*$' value='" + currentLon + "'>";
         html += "<div class='note'>Leave blank to auto-lookup from city name</div>";
+        html += "</div>";
+
+        // Calendar Section
+        html += "<div class='section'>";
+        html += "<h3>Google Calendar</h3>";
+        html += "<label>ICS URL:</label>";
+        html += "<input name='calendar_ics' value=\"" + htmlEscape(currentCalendarIcs) + "\" placeholder='https://calendar.google.com/calendar/ical/.../basic.ics'>";
+        html += "<div class='help'>Paste a public or private Google Calendar iCal/ICS URL to show today's events.</div>";
         html += "</div>";
 
         // Display Preferences
@@ -221,6 +239,7 @@ void startConfigPortal() {
         String city = server.arg("city");
         String lat = server.arg("lat");
         String lon = server.arg("lon");
+        String calendarIcs = server.arg("calendar_ics");
         String tempUnit = server.arg("tempunit");
         bool nightMode = server.arg("nightmode") == "1";
         int dayInterval = server.arg("day_interval").toInt();
@@ -276,6 +295,7 @@ void startConfigPortal() {
         preferences.putString("password", password);
         preferences.putString("city", city);
         preferences.putString("tempunit", tempUnit);
+        preferences.putString("calendar_ics", calendarIcs);
         preferences.putBool("nightmode", nightMode);
         preferences.putInt("day_interval", dayInterval);
         preferences.putInt("night_interval", nightInterval);

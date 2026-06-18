@@ -14,6 +14,7 @@
 #include "constants.h"
 #include "utils.h"
 #include "weather_api.h"
+#include "calendar_api.h"
 #include "config.h"
 #include "display.h"
 
@@ -67,7 +68,7 @@ void setup() {
     delay(100);
 
     Serial.println("\n=================================");
-    Serial.println("PaperS3Weather " + String(VERSION));
+    Serial.println(String(APP_NAME) + " " + String(VERSION));
     Serial.println("Based on Bastelschlumpf design");
     Serial.println("=================================");
 
@@ -84,7 +85,7 @@ void setup() {
     M5.Display.setTextColor(TFT_BLACK);
     M5.Display.setTextSize(2);
     M5.Display.setCursor(20, 20);
-    M5.Display.println("PaperS3Weather " + String(VERSION));
+    M5.Display.println(String(APP_NAME) + " " + String(VERSION));
     M5.Display.setCursor(20, 50);
     M5.Display.println("Initializing...");
     M5.Display.endWrite();
@@ -115,6 +116,10 @@ void setup() {
 
             if (fetchWeatherData(latitude, longitude)) {
                 Serial.println("Weather fetch successful!");
+                preferences.begin("weather", true);
+                String calendarIcsUrl = preferences.getString("calendar_ics", "");
+                preferences.end();
+                fetchCalendarData(calendarIcsUrl);
                 displayWeather();
                 lastRefreshTime = millis();
                 fetchSuccess = true;
@@ -187,7 +192,7 @@ void loop() {
                         M5.Display.setCursor(20, 20);
                         M5.Display.println("Opening Configuration...");
                         M5.Display.println("\nConnect to:");
-                        M5.Display.println("  M5Paper-Weather");
+                        M5.Display.println("  " + String(CONFIG_AP_SSID));
                         M5.Display.println("Password: configure");
                         M5.Display.println("URL: 192.168.4.1");
                         M5.Display.endWrite();

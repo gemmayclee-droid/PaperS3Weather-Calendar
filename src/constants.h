@@ -1,8 +1,9 @@
 #ifndef CONSTANTS_H
 #define CONSTANTS_H
 
-// Version
-#define VERSION "Version 1.13"
+// App identity
+#define APP_NAME "PaperS3Weather-Calendar"
+#define VERSION "Version 1.0"
 
 // WiFi Configuration
 #define WIFI_TIMEOUT_MS 20000
@@ -101,7 +102,7 @@
 #define COORD_NOT_SET -9999.0
 
 // Config Portal
-#define CONFIG_AP_SSID "M5Paper-Weather"
+#define CONFIG_AP_SSID APP_NAME
 #define CONFIG_AP_PASSWORD "configure"
 #define CONFIG_AP_IP "192.168.4.1"
 

@@ -1,6 +1,7 @@
 #include "display.h"
 #include "constants.h"
 #include "utils.h"
+#include "calendar_api.h"
 #include "Icons.h"
 #include <WiFi.h>
 
@@ -413,11 +414,39 @@ void drawDailyForecast(int x, int y, int dx, int dy, int forecastIndex) {
     const uint8_t* weatherIcon = getWeatherIcon(currentWeather.forecastWeatherCode[forecastIndex], true);
     drawIcon(x + dx / 2 - 32, y + 32, weatherIcon, WEATHER_ICON_SIZE, WEATHER_ICON_SIZE, true);
 
-    canvas.setTextSize(3);
+    canvas.setTextSize(2);
     canvas.drawString(formatTemp(currentWeather.forecastMinTemp[forecastIndex]) + " / " +
                       formatTemp(currentWeather.forecastMaxTemp[forecastIndex]),
-                      x + dx / 2, y + 100);
+                      x + dx / 2, y + 106);
     canvas.setTextDatum(TL_DATUM);
+}
+
+String fitText(String text, int maxWidth) {
+    if (canvas.textWidth(text) <= maxWidth) {
+        return text;
+    }
+
+    while (text.length() > 3 && canvas.textWidth(text + "...") > maxWidth) {
+        text.remove(text.length() - 1);
+    }
+    return text + "...";
+}
+
+void drawCalendarEvents(int x, int y, int dx, int dy) {
+    canvas.setTextDatum(TL_DATUM);
+    canvas.setTextSize(2);
+
+    if (calendarEventCount == 0) {
+        canvas.drawString("No events today", x + 14, y + 20);
+        return;
+    }
+
+    int lineY = y + 14;
+    int maxTextWidth = dx - 28;
+    for (int i = 0; i < calendarEventCount; i++) {
+        canvas.drawString(fitText(calendarEvents[i], maxTextWidth), x + 14, lineY);
+        lineY += 32;
+    }
 }
 
 void drawSunInfo(int x, int y, int dx, int dy) {
@@ -572,6 +601,7 @@ void displayWeather() {
 
     // Draw next 8 hours panel
     canvas.drawRect(contentX, hourlyY, contentW, hourlyH, TFT_BLACK);
+    canvas.setTextSize(2);
     canvas.drawString("Next 8 Hours", contentX + 12, hourlyY + 10);
     canvas.drawLine(contentX, hourlyY + PANEL_TITLE_HEIGHT, contentX + contentW, hourlyY + PANEL_TITLE_HEIGHT, TFT_BLACK);
     int hourlyCellW = contentW / MAX_HOURLY;
@@ -584,11 +614,12 @@ void displayWeather() {
     }
 
     // Draw next 3 days panel and reserve space for Google Calendar.
-    const int calendarW = 280;
+    const int calendarW = 360;
     const int forecastW = contentW - calendarW;
     const int calendarX = contentX + forecastW;
 
     canvas.drawRect(contentX, dailyY, forecastW, dailyH, TFT_BLACK);
+    canvas.setTextSize(2);
     canvas.drawString("Next 3 Days", contentX + 12, dailyY + 10);
     canvas.drawLine(contentX, dailyY + PANEL_TITLE_HEIGHT, contentX + forecastW, dailyY + PANEL_TITLE_HEIGHT, TFT_BLACK);
     int dailyCellW = forecastW / 3;
@@ -601,8 +632,10 @@ void displayWeather() {
     }
 
     canvas.drawRect(calendarX, dailyY, calendarW, dailyH, TFT_BLACK);
+    canvas.setTextSize(2);
     canvas.drawString("Google Calendar", calendarX + 12, dailyY + 10);
     canvas.drawLine(calendarX, dailyY + PANEL_TITLE_HEIGHT, calendarX + calendarW, dailyY + PANEL_TITLE_HEIGHT, TFT_BLACK);
+    drawCalendarEvents(calendarX, dailyY + PANEL_TITLE_HEIGHT, calendarW, dailyH - PANEL_TITLE_HEIGHT);
 
     // Push to display
     canvas.pushSprite(0, 0);
