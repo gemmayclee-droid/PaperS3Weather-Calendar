@@ -1,6 +1,6 @@
 # PaperS3Weather
 
-![PaperS3Weather](M5PaperS3_Weather_Dashboard_v1.1.JPG)
+![PaperS3Weather](M5PaperS3_Weather_Dashboard_3day_v1.0.png)
 
 A comprehensive weather station for the M5Paper S3 e-ink display, featuring real-time weather data, 8-hour forecasts, and intelligent power management. Built with the M5Unified library and powered by the Open-Meteo API.
 
