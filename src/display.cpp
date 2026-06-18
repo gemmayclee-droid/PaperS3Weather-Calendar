@@ -345,7 +345,8 @@ void drawCurrentConditions(int x, int y, int dx, int dy) {
 
     // Draw weather icon
     struct tm timeinfo;
-    if (!getLocalTime(&timeinfo)) {
+    bool hasTime = getLocalTime(&timeinfo);
+    if (!hasTime) {
         timeinfo.tm_hour = 12;
     }
     bool isDay = isDaytime(timeinfo.tm_hour);
@@ -379,10 +380,17 @@ void drawCurrentConditions(int x, int y, int dx, int dy) {
     canvas.drawString("Sunset", sunX, y + 74);
     canvas.drawString(currentWeather.sunsetTime.length() > 0 ? currentWeather.sunsetTime : "--:--", sunX + 105, y + 74);
 
+    if (hasTime) {
+        char dateStr[12];
+        sprintf(dateStr, "%02d/%02d", timeinfo.tm_mon + 1, timeinfo.tm_mday);
+        const char* days[] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
+        canvas.drawString(String(days[timeinfo.tm_wday]) + " " + String(dateStr), sunX, y + 102);
+    }
+
     canvas.setTextDatum(TL_DATUM);
 }
 
-String getForecastDayLabel(int dayOffset) {
+String getForecastDateLabel(int dayOffset) {
     struct tm timeinfo;
     if (!getLocalTime(&timeinfo)) {
         return "D+" + String(dayOffset);
@@ -391,27 +399,28 @@ String getForecastDayLabel(int dayOffset) {
     timeinfo.tm_mday += dayOffset;
     mktime(&timeinfo);
 
+    char dateStr[12];
+    sprintf(dateStr, "%02d/%02d", timeinfo.tm_mon + 1, timeinfo.tm_mday);
     const char* days[] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
-    return String(days[timeinfo.tm_wday]);
+    return String(days[timeinfo.tm_wday]) + " " + String(dateStr);
 }
 
 void drawDailyForecast(int x, int y, int dx, int dy, int forecastIndex) {
     canvas.setTextDatum(TC_DATUM);
-    canvas.setTextSize(4);
-    canvas.drawString(getForecastDayLabel(forecastIndex), x + dx / 2, y + 8);
+    canvas.setTextSize(3);
+    canvas.drawString(getForecastDateLabel(forecastIndex), x + dx / 2, y + 8);
+
+    const uint8_t* weatherIcon = getWeatherIcon(currentWeather.forecastWeatherCode[forecastIndex], true);
+    drawIcon(x + dx / 2 - 32, y + 36, weatherIcon, WEATHER_ICON_SIZE, WEATHER_ICON_SIZE, true);
 
     canvas.setTextSize(4);
     canvas.drawString(formatTemp(currentWeather.forecastMinTemp[forecastIndex]) + " / " +
                       formatTemp(currentWeather.forecastMaxTemp[forecastIndex]),
-                      x + dx / 2, y + 50);
+                      x + dx / 2, y + 100);
 
-    canvas.setTextSize(3);
+    canvas.setTextSize(2);
     canvas.drawString(String("Rain ") + String(currentWeather.forecastRain[forecastIndex], 1) + " mm",
-                      x + dx / 2, y + 90);
-    canvas.drawString(String("Humidity ") + String((int)currentWeather.forecastHumidity[forecastIndex]) + "%",
-                      x + dx / 2, y + 118);
-    canvas.drawString(String("Pressure ") + String((int)currentWeather.forecastPressure[forecastIndex]) + " hPa",
-                      x + dx / 2, y + 146);
+                      x + dx / 2, y + 132);
     canvas.setTextDatum(TL_DATUM);
 }
 

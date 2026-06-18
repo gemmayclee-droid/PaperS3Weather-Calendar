@@ -36,6 +36,7 @@ struct WeatherData {
     float forecastRain[7];
     float forecastHumidity[7];
     float forecastPressure[7];
+    int forecastWeatherCode[7];
 
     float todayMinTemp;
     float todayMaxTemp;
