@@ -26,3 +26,10 @@ jobs:
 
       - name: Build PaperS3 firmware
         run: pio run -e PaperS3
+
+      - name: Upload firmware artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PaperS3Weather-firmware
+          path: .pio/build/PaperS3/firmware.bin
+          if-no-files-found: error
