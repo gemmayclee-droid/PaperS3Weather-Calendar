@@ -2,7 +2,9 @@
 
 ![PaperS3Weather](M5PaperS3_Weather_Calendar_EN.png)
 
-A weather and calendar dashboard for the M5Paper S3 e-ink display, featuring current weather, an 8-hour forecast, a 3-day forecast, today's Google Calendar events, bilingual display labels, and intelligent power management. Built with the M5Unified library and powered by the Open-Meteo API.
+PaperS3Weather-Calendar is a weather and Google Calendar dashboard for the M5Paper S3 e-ink display. It shows current weather, the next 8 hours, the next 3 days, and today's calendar events on one screen, with English or Chinese display labels selected from the setup portal.
+
+Firmware is built automatically with GitHub Actions. Download the latest `firmware.bin` from the project's [GitHub Releases](https://github.com/gemmayclee-droid/PaperS3Weather-Calendar/releases).
 
 [![Arduino](https://img.shields.io/badge/Arduino-Compatible-brightgreen.svg)](https://www.arduino.cc/)
 [![PlatformIO](https://img.shields.io/badge/PlatformIO-Ready-orange.svg)](https://platformio.org/)
@@ -10,28 +12,39 @@ A weather and calendar dashboard for the M5Paper S3 e-ink display, featuring cur
 
 ## Features
 
-- **Current Weather Conditions**: Large, easy-to-read temperature display with weather icons and conditions
-- **8-Hour Forecast**: Hourly weather predictions with temperature and weather icons
-- **3-Day Forecast**: Daily weather icons, high/low temperatures, and rain probability
-- **Google Calendar Events**: Shows today's events from a configured Google Calendar ICS URL
-- **Bilingual Main Display**: Choose English (default) or Chinese labels from the setup portal
-- **User-Configurable Refresh Intervals**: Set day (5-120 min) and night (15-240 min) update frequencies via web interface
-- **Smart Wake Detection**: Config button accessible only on manual reset (saves battery)
-- **Customizable Night Mode**: Set your own night hours (0-23) for reduced refresh rate
-- **Celsius/Fahrenheit Support**: Toggle between temperature units via configuration
-- **City-Based Location**: Automatic coordinate lookup by city name
-- **Modern Web Configuration**: Enhanced portal with validation and mobile-friendly design
-- **Deep Sleep Implementation**: Intelligent power management between updates
-- **Sun & Moon Information**: Sunrise/sunset times and moon phase display
-- **Wind Compass**: Real-time wind speed and direction visualization
-- **Battery & WiFi Status**: Always-visible system information
-- **Modular Architecture**: Clean, maintainable code structure
+- **Single-screen dashboard**: Current weather, next 8 hours, next 3 days, and Google Calendar events.
+- **Current weather**: Large temperature, weather condition, feels-like temperature, daily high/low, humidity, wind, rain, sunrise, sunset, and date.
+- **Next 8 hours**: Hourly time, weather icon, and temperature.
+- **Next 3 days**: Date, weather icon, high/low temperature, and rain probability.
+- **Google Calendar**: Shows today's events from a configured Google Calendar ICS URL.
+- **Display language**: English by default, with optional Chinese labels from the setup portal.
+- **Web setup portal**: Configure WiFi, location, calendar ICS URL, temperature unit, language, refresh intervals, and night mode.
+- **Automatic setup prompt**: Opens setup when WiFi is missing, WiFi fails, or the calendar ICS URL has not been configured.
+- **Power saving**: Deep sleep between updates, with separate day/night refresh intervals.
+- **GitHub release builds**: Every main-branch firmware build is published as a downloadable `firmware.bin`.
 
 ## Hardware Requirements
 
 - **M5Paper S3** device (4.7" e-ink display, 960x540 resolution)
 - **USB-C cable** for programming and power
 - **WiFi connection** for weather data
+
+## Install Firmware
+
+### Option A: Download Prebuilt Firmware
+
+1. Open the [Releases page](https://github.com/gemmayclee-droid/PaperS3Weather-Calendar/releases).
+2. Download the latest `firmware.bin`.
+3. Flash it to your M5Paper S3 with your preferred ESP32 flashing tool.
+
+### Option B: Build with PlatformIO
+
+```bash
+git clone https://github.com/gemmayclee-droid/PaperS3Weather-Calendar.git
+cd PaperS3Weather-Calendar
+pio run -e PaperS3
+pio run -e PaperS3 --target upload
+```
 
 ## Attribution
 
@@ -49,101 +62,53 @@ This project is based on [Bastelschlumpf's M5PaperWeather](https://github.com/Ba
 - **Power Management**: Enhanced deep sleep implementation
 - **Configuration**: Web-based WiFi and settings configuration portal
 
-## Quick Start
+## First Setup
 
-### For Beginners
+After first boot, the device starts the setup portal if required.
 
-#### 1. Install PlatformIO
+1. Connect your phone or computer to WiFi network `PaperS3Weather-Calendar`.
+2. Use password `configure`.
+3. Open `http://192.168.4.1`.
+4. Enter the required settings:
+   - **WiFi SSID**: Your 2.4 GHz WiFi network.
+   - **WiFi Password**: Your WiFi password.
+   - **City Name**: Used for automatic coordinate lookup.
+   - **Google Calendar ICS URL**: Required for today's events.
+   - **Temperature Unit**: Fahrenheit or Celsius.
+   - **Display Language**: English or Chinese.
+   - **Refresh / Night Mode**: Optional power-saving settings.
+5. Click **Save & Restart**.
 
-If you're new to embedded development, PlatformIO is an excellent development environment:
+## Google Calendar ICS URL
 
-1. Download and install [Visual Studio Code](https://code.visualstudio.com/)
-2. Open VS Code and install the PlatformIO extension:
-   - Click the Extensions icon (or press `Ctrl+Shift+X`)
-   - Search for "PlatformIO IDE"
-   - Click "Install"
-3. Restart VS Code
+The calendar panel reads an iCal/ICS feed. In Google Calendar:
 
-#### 2. Clone or Download This Project
+1. Open Google Calendar in a browser.
+2. Open the calendar's settings.
+3. Find **Integrate calendar**.
+4. Copy the public or secret iCal address.
+5. Paste that URL into the setup portal's **Google Calendar ICS URL** field.
 
-- **Option A**: Clone with git:
-  ```bash
-  git clone https://github.com/gemmayclee-droid/PaperS3Weather-Calendar.git
-  cd PaperS3Weather-Calendar
-  ```
+The device accepts `https://...` and converts `webcal://...` URLs to HTTPS automatically.
 
-- **Option B**: Download ZIP:
-  - Download the project as a ZIP file
-  - Extract to a folder of your choice
-  - Open the folder in VS Code
+Current calendar parsing is intentionally lightweight. It displays up to three events whose `DTSTART` is today. Recurring events that only appear through `RRULE` expansion and long multi-day events may need future parser improvements.
 
-#### 3. Open Project in PlatformIO
+## Display Language
 
-1. Open VS Code
-2. Click **File → Open Folder**
-3. Select the `PaperS3Weather-Calendar` folder
-4. Wait for PlatformIO to initialize and download dependencies (first time only)
+The setup portal includes a **Display Language** option:
 
-#### 4. Connect Your M5Paper S3
+- **English**: Default.
+- **Chinese**: Main dashboard labels use the built-in M5GFX Chinese font.
 
-1. Connect your M5Paper S3 to your computer via USB-C cable
-2. The device should be recognized automatically
-3. Press the power button if the device doesn't turn on
+Chinese labels currently use simplified Chinese strings because they are the safest fit for the built-in font. Traditional Chinese typography may require adding an external font asset.
 
-#### 5. Build and Upload
-
-1. In VS Code, look for the PlatformIO toolbar at the bottom
-2. Click the **Build** button (checkmark icon) to compile
-3. Once build succeeds, click the **Upload** button (arrow icon)
-4. Wait for upload to complete (progress shown in terminal)
-
-#### 6. Configure WiFi and Location
-
-After first boot, the device will display a configuration screen:
-
-1. **Connect to WiFi**:
-   - On your phone/computer, look for WiFi network: `PaperS3Weather-Calendar`
-   - Password: `configure`
-   - Open browser and go to: `http://192.168.4.1`
-
-2. **Enter Settings**:
-   - **WiFi SSID**: Your home WiFi network name
-   - **WiFi Password**: Your WiFi password
-   - **City Name**: Your city (e.g., "Auckland", "New York", "Tokyo")
-     - Just enter the city name, coordinates will be looked up automatically
-     - Leave Latitude/Longitude fields blank unless you want manual coordinates
-   - **Google Calendar ICS URL**: Paste your Google Calendar iCal/ICS URL for today's events
-   - **Temperature Unit**: Choose Fahrenheit (default) or Celsius from dropdown
-   - **Display Language**: Choose English (default) or Chinese labels for the main dashboard
-   - **Night Mode**: Leave checked (default) to enable reduced refresh rate 10pm-5am
-
-3. **Save & Restart**:
-   - Click "Save & Restart"
-   - Device will restart and connect to your WiFi
-   - Your city coordinates will be geocoded automatically (requires internet)
-   - Weather data will be fetched and displayed
-
-4. **Enjoy!**:
-   - Weather dashboard will display and update automatically
-   - Device sleeps between updates to save battery
-   - Check serial monitor (`pio device monitor`) to verify city geocoding succeeded
-
-### For Developers
-
-Quick command-line workflow:
+## Developer Workflow
 
 ```bash
-# Clone repository
 git clone https://github.com/gemmayclee-droid/PaperS3Weather-Calendar.git
 cd PaperS3Weather-Calendar
-
-# Build project
-pio run
-
-# Upload to device
-pio run --target upload
-
-# Monitor serial output
+pio run -e PaperS3
+pio run -e PaperS3 --target upload
 pio device monitor
 ```
 
@@ -201,14 +166,6 @@ This means you won't see geocoding errors in the config portal - they only occur
 ### Temperature Unit
 
 Choose between Fahrenheit (default) or Celsius via dropdown menu in configuration portal. This affects all temperature displays including current conditions and forecasts.
-
-### Display Language
-
-Choose between English (default) and Chinese in the configuration portal. The device stores the setting as `display_lang` and switches the main dashboard labels accordingly. Chinese rendering uses the built-in M5GFX Chinese font, so custom Traditional Chinese typography may require adding an external font asset.
-
-### Google Calendar ICS
-
-Paste a Google Calendar iCal/ICS URL in the setup portal. The device fetches the ICS feed after weather data and displays today's events in the Google Calendar panel. If the ICS URL is missing, the device opens the setup portal so the calendar can be configured.
 
 ### Night Mode
 
