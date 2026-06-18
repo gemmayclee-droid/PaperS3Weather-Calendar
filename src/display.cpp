@@ -407,20 +407,16 @@ String getForecastDateLabel(int dayOffset) {
 
 void drawDailyForecast(int x, int y, int dx, int dy, int forecastIndex) {
     canvas.setTextDatum(TC_DATUM);
-    canvas.setTextSize(3);
+    canvas.setTextSize(2);
     canvas.drawString(getForecastDateLabel(forecastIndex), x + dx / 2, y + 8);
 
     const uint8_t* weatherIcon = getWeatherIcon(currentWeather.forecastWeatherCode[forecastIndex], true);
-    drawIcon(x + dx / 2 - 32, y + 36, weatherIcon, WEATHER_ICON_SIZE, WEATHER_ICON_SIZE, true);
+    drawIcon(x + dx / 2 - 32, y + 32, weatherIcon, WEATHER_ICON_SIZE, WEATHER_ICON_SIZE, true);
 
-    canvas.setTextSize(4);
+    canvas.setTextSize(3);
     canvas.drawString(formatTemp(currentWeather.forecastMinTemp[forecastIndex]) + " / " +
                       formatTemp(currentWeather.forecastMaxTemp[forecastIndex]),
                       x + dx / 2, y + 100);
-
-    canvas.setTextSize(2);
-    canvas.drawString(String("Rain ") + String(currentWeather.forecastRain[forecastIndex], 1) + " mm",
-                      x + dx / 2, y + 132);
     canvas.setTextDatum(TL_DATUM);
 }
 
@@ -587,11 +583,15 @@ void displayWeather() {
         drawHourlyForecast(x, hourlyY + PANEL_TITLE_HEIGHT, hourlyCellW, hourlyH - PANEL_TITLE_HEIGHT, i);
     }
 
-    // Draw next 3 days panel. Index 0 is today in the API arrays, so use 1-3.
-    canvas.drawRect(contentX, dailyY, contentW, dailyH, TFT_BLACK);
+    // Draw next 3 days panel and reserve space for Google Calendar.
+    const int calendarW = 280;
+    const int forecastW = contentW - calendarW;
+    const int calendarX = contentX + forecastW;
+
+    canvas.drawRect(contentX, dailyY, forecastW, dailyH, TFT_BLACK);
     canvas.drawString("Next 3 Days", contentX + 12, dailyY + 10);
-    canvas.drawLine(contentX, dailyY + PANEL_TITLE_HEIGHT, contentX + contentW, dailyY + PANEL_TITLE_HEIGHT, TFT_BLACK);
-    int dailyCellW = contentW / 3;
+    canvas.drawLine(contentX, dailyY + PANEL_TITLE_HEIGHT, contentX + forecastW, dailyY + PANEL_TITLE_HEIGHT, TFT_BLACK);
+    int dailyCellW = forecastW / 3;
     for (int i = 0; i < 3; i++) {
         int x = contentX + i * dailyCellW;
         if (i > 0) {
@@ -599,6 +599,10 @@ void displayWeather() {
         }
         drawDailyForecast(x, dailyY + PANEL_TITLE_HEIGHT, dailyCellW, dailyH - PANEL_TITLE_HEIGHT, i + 1);
     }
+
+    canvas.drawRect(calendarX, dailyY, calendarW, dailyH, TFT_BLACK);
+    canvas.drawString("Google Calendar", calendarX + 12, dailyY + 10);
+    canvas.drawLine(calendarX, dailyY + PANEL_TITLE_HEIGHT, calendarX + calendarW, dailyY + PANEL_TITLE_HEIGHT, TFT_BLACK);
 
     // Push to display
     canvas.pushSprite(0, 0);
