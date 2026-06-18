@@ -1,6 +1,6 @@
 # PaperS3Weather-Calendar
 
-![PaperS3Weather](M5PaperS3_Weather_Dashboard_3day_v1.0.png)
+![PaperS3Weather](M5PaperS3_Weather_Calendar_EN.png)
 
 A weather and calendar dashboard for the M5Paper S3 e-ink display, featuring current weather, an 8-hour forecast, a 3-day forecast, today's Google Calendar events, bilingual display labels, and intelligent power management. Built with the M5Unified library and powered by the Open-Meteo API.
 
