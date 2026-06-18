@@ -187,8 +187,8 @@ void startConfigPortal() {
         html += "<div class='section'>";
         html += "<h3>Google Calendar</h3>";
         html += "<label>ICS URL:</label>";
-        html += "<input name='calendar_ics' value=\"" + htmlEscape(currentCalendarIcs) + "\" placeholder='https://calendar.google.com/calendar/ical/.../basic.ics'>";
-        html += "<div class='help'>Paste a public or private Google Calendar iCal/ICS URL to show today's events.</div>";
+        html += "<input name='calendar_ics' value=\"" + htmlEscape(currentCalendarIcs) + "\" placeholder='https://calendar.google.com/calendar/ical/.../basic.ics' required>";
+        html += "<div class='help'>Paste a public or private Google Calendar iCal/ICS URL to show today's events. This field is required.</div>";
         html += "</div>";
 
         // Display Preferences
@@ -250,6 +250,13 @@ void startConfigPortal() {
         if (ssid.length() == 0 || city.length() == 0) {
             server.send(400, "text/html",
                 "<html><body><h1>Error</h1><p>SSID and City are required!</p>"
+                "<a href='/'>Go Back</a></body></html>");
+            return;
+        }
+
+        if (calendarIcs.length() == 0) {
+            server.send(400, "text/html",
+                "<html><body><h1>Error</h1><p>Google Calendar ICS URL is required!</p>"
                 "<a href='/'>Go Back</a></body></html>");
             return;
         }

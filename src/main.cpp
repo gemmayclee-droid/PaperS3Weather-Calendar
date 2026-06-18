@@ -96,6 +96,31 @@ void setup() {
 
     setupWiFi();
 
+    preferences.begin("weather", true);
+    String configuredCalendarIcs = preferences.getString("calendar_ics", "");
+    preferences.end();
+
+    if (WiFi.status() == WL_CONNECTED && configuredCalendarIcs.length() == 0) {
+        Serial.println("Google Calendar ICS URL is missing; opening configuration portal");
+        M5.Display.startWrite();
+        M5.Display.fillScreen(TFT_WHITE);
+        M5.Display.setTextColor(TFT_BLACK);
+        M5.Display.setTextSize(2);
+        M5.Display.setCursor(20, 20);
+        M5.Display.println("Calendar setup required");
+        M5.Display.println("\nConnect to:");
+        M5.Display.println("  " + String(CONFIG_AP_SSID));
+        M5.Display.println("Password: configure");
+        M5.Display.println("URL: 192.168.4.1");
+        M5.Display.endWrite();
+        M5.Display.display();
+
+        WiFi.disconnect();
+        delay(500);
+        startConfigPortal();
+        ESP.restart();
+    }
+
     // Set system time: use RTC if it has a valid date, otherwise fall back to NTP
     setupTime();
 

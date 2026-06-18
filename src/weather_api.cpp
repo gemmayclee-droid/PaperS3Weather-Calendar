@@ -19,7 +19,7 @@ bool fetchWeatherData(float latitude, float longitude) {
     url += "&longitude=" + String(longitude, 4);
     url += "&current=temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,wind_speed_10m,wind_direction_10m,weather_code";
     url += "&hourly=temperature_2m,precipitation_probability,relative_humidity_2m,pressure_msl,uv_index,weather_code";
-    url += "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,relative_humidity_2m_mean,pressure_msl_mean,sunrise,sunset";
+    url += "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,relative_humidity_2m_mean,pressure_msl_mean,sunrise,sunset";
     url += useCelsius ? "&temperature_unit=celsius&wind_speed_unit=kmh&precipitation_unit=mm" :
                         "&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch";
     url += "&timezone=auto&forecast_days=7";
@@ -100,7 +100,7 @@ bool fetchWeatherData(float latitude, float longitude) {
                 // Extract daily forecast
                 JsonArray dailyMax = doc["daily"]["temperature_2m_max"];
                 JsonArray dailyMin = doc["daily"]["temperature_2m_min"];
-                JsonArray dailyRain = doc["daily"]["precipitation_sum"];
+                JsonArray dailyRain = doc["daily"]["precipitation_probability_max"];
                 JsonArray dailyHumid = doc["daily"]["relative_humidity_2m_mean"];
                 JsonArray dailyPressure = doc["daily"]["pressure_msl_mean"];
                 JsonArray dailyWeatherCode = doc["daily"]["weather_code"];

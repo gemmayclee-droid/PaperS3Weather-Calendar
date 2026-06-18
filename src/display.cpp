@@ -157,8 +157,6 @@ void drawHourlyForecast(int x, int y, int dx, int dy, int index) {
     canvas.setTextSize(3);
     canvas.drawString(formatTemp(currentWeather.hourly[index].temp), x + dx / 2, y + 98);
 
-    canvas.setTextSize(1);
-    canvas.drawString(String((int)currentWeather.hourly[index].precip) + "% rain", x + dx / 2, y + 120);
     canvas.setTextDatum(TL_DATUM);
 }
 
@@ -417,7 +415,9 @@ void drawDailyForecast(int x, int y, int dx, int dy, int forecastIndex) {
     canvas.setTextSize(2);
     canvas.drawString(formatTemp(currentWeather.forecastMinTemp[forecastIndex]) + " / " +
                       formatTemp(currentWeather.forecastMaxTemp[forecastIndex]),
-                      x + dx / 2, y + 106);
+                      x + dx / 2, y + 102);
+    canvas.drawString("Rain " + String((int)currentWeather.forecastRain[forecastIndex]) + "%",
+                      x + dx / 2, y + 126);
     canvas.setTextDatum(TL_DATUM);
 }
 
