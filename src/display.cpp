@@ -8,6 +8,61 @@
 extern WeatherData currentWeather;
 extern M5Canvas canvas;
 extern String cityName;
+extern bool useChineseDisplay;
+
+void useDefaultFont(int size = 2) {
+    canvas.setFont(nullptr);
+    canvas.setTextFont(1);
+    canvas.setTextSize(size);
+}
+
+void useDisplayFont(int size = 2) {
+    if (useChineseDisplay) {
+        canvas.setFont(&fonts::efontCN_16);
+        canvas.setTextSize(1);
+    } else {
+        useDefaultFont(size);
+    }
+}
+
+const char* labelText(const char* english, const char* chinese) {
+    return useChineseDisplay ? chinese : english;
+}
+
+String getDisplayWeatherConditionText(int weatherCode) {
+    if (!useChineseDisplay) {
+        return getWeatherConditionText(weatherCode);
+    }
+
+    if (weatherCode == 0) return "晴";
+    if (weatherCode >= 1 && weatherCode <= 2) return "多云";
+    if (weatherCode == 3) return "阴";
+    if (weatherCode >= 45 && weatherCode <= 48) return "雾";
+    if (weatherCode >= 51 && weatherCode <= 57) return "毛毛雨";
+    if (weatherCode >= 61 && weatherCode <= 65) return "雨";
+    if (weatherCode >= 66 && weatherCode <= 67) return "冻雨";
+    if (weatherCode >= 71 && weatherCode <= 77) return "雪";
+    if (weatherCode >= 80 && weatherCode <= 82) return "阵雨";
+    if (weatherCode >= 85 && weatherCode <= 86) return "阵雪";
+    if (weatherCode >= 95) return "雷雨";
+    return "未知";
+}
+
+String getDisplayDateLabel(int dayOffset) {
+    struct tm timeinfo;
+    if (!getLocalTime(&timeinfo)) {
+        return "";
+    }
+
+    timeinfo.tm_mday += dayOffset;
+    mktime(&timeinfo);
+
+    char dateStr[12];
+    sprintf(dateStr, "%02d/%02d", timeinfo.tm_mon + 1, timeinfo.tm_mday);
+    const char* daysEn[] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
+    const char* daysZh[] = {"周日", "周一", "周二", "周三", "周四", "周五", "周六"};
+    return String(useChineseDisplay ? daysZh[timeinfo.tm_wday] : daysEn[timeinfo.tm_wday]) + " " + String(dateStr);
+}
 
 void drawIcon(int x, int y, const uint8_t *icon, int dx, int dy, bool highContrast) {
     const uint16_t *icon16 = (const uint16_t *)icon;
@@ -140,7 +195,7 @@ void drawHourlyForecast(int x, int y, int dx, int dy, int index) {
     }
     int forecastHour = (timeinfo.tm_hour + index + 1) % 24;
 
-    canvas.setTextSize(2);
+    useDefaultFont(2);
     canvas.setTextDatum(TC_DATUM);
     char hourStr[6];
     sprintf(hourStr, "%02d:00", forecastHour);
@@ -154,7 +209,7 @@ void drawHourlyForecast(int x, int y, int dx, int dy, int index) {
     drawIcon(iconX, iconY, weatherIcon, WEATHER_ICON_SIZE, WEATHER_ICON_SIZE, true);
 
     canvas.setTextDatum(TC_DATUM);
-    canvas.setTextSize(3);
+    useDefaultFont(3);
     canvas.drawString(formatTemp(currentWeather.hourly[index].temp), x + dx / 2, y + 98);
 
     canvas.setTextDatum(TL_DATUM);
@@ -339,8 +394,7 @@ void drawCurrentConditions(int x, int y, int dx, int dy) {
     int degreeY = mainTempY + 11;
     drawDegreeSymbol(degreeX, degreeY, TEMP_DEGREE_RADIUS_LARGE);
 
-    canvas.setFont(nullptr);
-    canvas.setTextFont(1);
+    useDisplayFont(2);
 
     // Draw weather icon
     struct tm timeinfo;
@@ -356,67 +410,58 @@ void drawCurrentConditions(int x, int y, int dx, int dy) {
     drawIcon(iconX, iconY, weatherIcon, WEATHER_ICON_SIZE, WEATHER_ICON_SIZE, true);
 
     // Draw condition text
-    String condition = getWeatherConditionText(currentWeather.weatherCode);
-    canvas.setTextSize(condition.length() > 14 ? 2 : 3);
+    String condition = getDisplayWeatherConditionText(currentWeather.weatherCode);
+    if (useChineseDisplay) {
+        useDisplayFont();
+    } else {
+        canvas.setTextSize(condition.length() > 14 ? 2 : 3);
+    }
     canvas.drawString(condition, x + 300, y + 50);
 
-    canvas.setTextSize(2);
-    canvas.drawString(String("Feels ") + formatTemp(currentWeather.apparentTemperature), x + 300, y + 84);
-    canvas.drawString(String("Today ") + formatTemp(currentWeather.todayMinTemp) + " / " +
+    useDisplayFont(2);
+    canvas.drawString(String(labelText("Feels ", "体感 ")) + formatTemp(currentWeather.apparentTemperature), x + 300, y + 84);
+    canvas.drawString(String(labelText("Today ", "今天 ")) + formatTemp(currentWeather.todayMinTemp) + " / " +
                       formatTemp(currentWeather.todayMaxTemp), x + 300, y + 110);
 
     int detailsX = x + 545;
-    canvas.drawString("Humidity", detailsX, y + 46);
+    canvas.drawString(labelText("Humidity", "湿度"), detailsX, y + 46);
     canvas.drawString(String((int)currentWeather.humidity) + "%", detailsX + 120, y + 46);
-    canvas.drawString("Wind", detailsX, y + 74);
+    canvas.drawString(labelText("Wind", "风速"), detailsX, y + 74);
     canvas.drawString(String(currentWeather.windSpeed, 1) + (useCelsius ? " km/h" : " mph"), detailsX + 120, y + 74);
-    canvas.drawString("Rain", detailsX, y + 102);
+    canvas.drawString(labelText("Rain", "降雨"), detailsX, y + 102);
     canvas.drawString(String(currentWeather.precipitation, 1) + " mm", detailsX + 120, y + 102);
 
     int sunX = x + 760;
-    canvas.drawString("Sunrise", sunX, y + 46);
+    canvas.drawString(labelText("Sunrise", "日出"), sunX, y + 46);
     canvas.drawString(currentWeather.sunriseTime.length() > 0 ? currentWeather.sunriseTime : "--:--", sunX + 105, y + 46);
-    canvas.drawString("Sunset", sunX, y + 74);
+    canvas.drawString(labelText("Sunset", "日落"), sunX, y + 74);
     canvas.drawString(currentWeather.sunsetTime.length() > 0 ? currentWeather.sunsetTime : "--:--", sunX + 105, y + 74);
 
     if (hasTime) {
-        char dateStr[12];
-        sprintf(dateStr, "%02d/%02d", timeinfo.tm_mon + 1, timeinfo.tm_mday);
-        const char* days[] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
-        canvas.drawString(String(days[timeinfo.tm_wday]) + " " + String(dateStr), sunX, y + 102);
+        canvas.drawString(getDisplayDateLabel(0), sunX, y + 102);
     }
 
     canvas.setTextDatum(TL_DATUM);
 }
 
 String getForecastDateLabel(int dayOffset) {
-    struct tm timeinfo;
-    if (!getLocalTime(&timeinfo)) {
-        return "D+" + String(dayOffset);
-    }
-
-    timeinfo.tm_mday += dayOffset;
-    mktime(&timeinfo);
-
-    char dateStr[12];
-    sprintf(dateStr, "%02d/%02d", timeinfo.tm_mon + 1, timeinfo.tm_mday);
-    const char* days[] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
-    return String(days[timeinfo.tm_wday]) + " " + String(dateStr);
+    String dateLabel = getDisplayDateLabel(dayOffset);
+    return dateLabel.length() > 0 ? dateLabel : "D+" + String(dayOffset);
 }
 
 void drawDailyForecast(int x, int y, int dx, int dy, int forecastIndex) {
     canvas.setTextDatum(TC_DATUM);
-    canvas.setTextSize(2);
+    useDisplayFont(2);
     canvas.drawString(getForecastDateLabel(forecastIndex), x + dx / 2, y + 8);
 
     const uint8_t* weatherIcon = getWeatherIcon(currentWeather.forecastWeatherCode[forecastIndex], true);
     drawIcon(x + dx / 2 - 32, y + 32, weatherIcon, WEATHER_ICON_SIZE, WEATHER_ICON_SIZE, true);
 
-    canvas.setTextSize(2);
+    useDisplayFont(2);
     canvas.drawString(formatTemp(currentWeather.forecastMinTemp[forecastIndex]) + " / " +
                       formatTemp(currentWeather.forecastMaxTemp[forecastIndex]),
                       x + dx / 2, y + 102);
-    canvas.drawString("Rain " + String((int)currentWeather.forecastRain[forecastIndex]) + "%",
+    canvas.drawString(String(labelText("Rain ", "降雨 ")) + String((int)currentWeather.forecastRain[forecastIndex]) + "%",
                       x + dx / 2, y + 126);
     canvas.setTextDatum(TL_DATUM);
 }
@@ -434,10 +479,10 @@ String fitText(String text, int maxWidth) {
 
 void drawCalendarEvents(int x, int y, int dx, int dy) {
     canvas.setTextDatum(TL_DATUM);
-    canvas.setTextSize(2);
+    useDisplayFont(2);
 
     if (calendarEventCount == 0) {
-        canvas.drawString("No events today", x + 14, y + 20);
+        canvas.drawString(labelText("No events today", "今日暂无行程"), x + 14, y + 20);
         return;
     }
 
@@ -548,10 +593,10 @@ void displayWeather() {
     canvas.fillSprite(TFT_WHITE);
     canvas.setTextColor(TFT_BLACK, TFT_WHITE);
     canvas.setTextDatum(TL_DATUM);
-    canvas.setTextSize(2);
+    useDisplayFont(2);
 
     // Draw header
-    canvas.setTextSize(2);
+    useDisplayFont(2);
     canvas.drawString(VERSION, 20, 10);
     canvas.setTextDatum(TC_DATUM);
     canvas.drawString(cityName, SCREEN_WIDTH / 2, 10);
@@ -576,8 +621,8 @@ void displayWeather() {
     drawBattery(SCREEN_WIDTH - 60, 10, batteryPercent);
 
     // Draw config button indicator
-    canvas.setTextSize(1);
-    canvas.drawString("[CFG]", SCREEN_WIDTH - 50, SCREEN_HEIGHT - 20);
+    useDisplayFont(1);
+    canvas.drawString(labelText("[CFG]", "[设置]"), SCREEN_WIDTH - (useChineseDisplay ? 62 : 50), SCREEN_HEIGHT - 20);
 
     // Draw main border
     canvas.drawRect(PANEL_BORDER, HEADER_HEIGHT, SCREEN_WIDTH - 28, SCREEN_HEIGHT - 43, TFT_BLACK);
@@ -594,15 +639,15 @@ void displayWeather() {
 
     canvas.drawRect(contentX, currentY, contentW, currentH, TFT_BLACK);
     canvas.setTextDatum(TL_DATUM);
-    canvas.setTextSize(2);
-    canvas.drawString("Current Weather", contentX + 12, currentY + 10);
+    useDisplayFont(2);
+    canvas.drawString(labelText("Current Weather", "当前天气"), contentX + 12, currentY + 10);
     canvas.drawLine(contentX, currentY + PANEL_TITLE_HEIGHT, contentX + contentW, currentY + PANEL_TITLE_HEIGHT, TFT_BLACK);
     drawCurrentConditions(contentX, currentY, contentW, currentH);
 
     // Draw next 8 hours panel
     canvas.drawRect(contentX, hourlyY, contentW, hourlyH, TFT_BLACK);
-    canvas.setTextSize(2);
-    canvas.drawString("Next 8 Hours", contentX + 12, hourlyY + 10);
+    useDisplayFont(2);
+    canvas.drawString(labelText("Next 8 Hours", "未来八小时"), contentX + 12, hourlyY + 10);
     canvas.drawLine(contentX, hourlyY + PANEL_TITLE_HEIGHT, contentX + contentW, hourlyY + PANEL_TITLE_HEIGHT, TFT_BLACK);
     int hourlyCellW = contentW / MAX_HOURLY;
     for (int i = 0; i < MAX_HOURLY; i++) {
@@ -619,8 +664,8 @@ void displayWeather() {
     const int calendarX = contentX + forecastW;
 
     canvas.drawRect(contentX, dailyY, forecastW, dailyH, TFT_BLACK);
-    canvas.setTextSize(2);
-    canvas.drawString("Next 3 Days", contentX + 12, dailyY + 10);
+    useDisplayFont(2);
+    canvas.drawString(labelText("Next 3 Days", "未来三天"), contentX + 12, dailyY + 10);
     canvas.drawLine(contentX, dailyY + PANEL_TITLE_HEIGHT, contentX + forecastW, dailyY + PANEL_TITLE_HEIGHT, TFT_BLACK);
     int dailyCellW = forecastW / 3;
     for (int i = 0; i < 3; i++) {
@@ -632,8 +677,8 @@ void displayWeather() {
     }
 
     canvas.drawRect(calendarX, dailyY, calendarW, dailyH, TFT_BLACK);
-    canvas.setTextSize(2);
-    canvas.drawString("Google Calendar", calendarX + 12, dailyY + 10);
+    useDisplayFont(2);
+    canvas.drawString(labelText("Google Calendar", "Google 行程"), calendarX + 12, dailyY + 10);
     canvas.drawLine(calendarX, dailyY + PANEL_TITLE_HEIGHT, calendarX + calendarW, dailyY + PANEL_TITLE_HEIGHT, TFT_BLACK);
     drawCalendarEvents(calendarX, dailyY + PANEL_TITLE_HEIGHT, calendarW, dailyH - PANEL_TITLE_HEIGHT);
 

@@ -1,5 +1,36 @@
 # Changelog - M5PaperS3 Weather Dashboard
 
+## Unreleased - Chinese Display Language Branch
+
+### Added
+- Added a display language setting in the configuration portal with English as the default and Chinese as an optional main-screen language.
+- Added Chinese labels for the main weather dashboard, including current weather, 8-hour forecast, 3-day forecast, rain probability, and Google Calendar panel labels.
+- Added Google Calendar ICS setup documentation to the README.
+
+### Changed
+- Updated README branding and setup instructions for `PaperS3Weather-Calendar`.
+- Documented the current single-screen weather and calendar layout.
+
+### Notes
+- Chinese rendering uses the built-in M5GFX Chinese font. Traditional Chinese typography may require adding a dedicated external font asset.
+
+---
+
+## Version 1.0 - Weather Calendar Dashboard (June 2026)
+
+### Added
+- Single-screen layout showing current weather, next 8 hours, next 3 days, and Google Calendar events.
+- Google Calendar ICS URL setting in the web configuration portal.
+- Automatic setup portal prompt when the calendar ICS URL has not been configured.
+- GitHub Actions firmware build and Release publishing for `firmware.bin`.
+
+### Changed
+- Renamed app identity to `PaperS3Weather-Calendar`.
+- Updated firmware version to `Version 1.0`.
+- Reworked forecast presentation so the 8-hour view focuses on weather icons and temperature while the 3-day view includes rain probability.
+
+---
+
 ## Version 1.13 - Battery Life Improvements (April 2025)
 
 ### Power Optimization

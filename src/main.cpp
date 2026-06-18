@@ -26,6 +26,7 @@ WeatherData currentWeather;
 // Configuration state
 bool useCelsius = false;
 bool nightModeSleep = true;
+bool useChineseDisplay = false;
 String cityName = DEFAULT_CITY;
 
 // Runtime state

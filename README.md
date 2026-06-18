@@ -1,8 +1,8 @@
-# PaperS3Weather
+# PaperS3Weather-Calendar
 
 ![PaperS3Weather](M5PaperS3_Weather_Dashboard_3day_v1.0.png)
 
-A comprehensive weather station for the M5Paper S3 e-ink display, featuring real-time weather data, 8-hour forecasts, and intelligent power management. Built with the M5Unified library and powered by the Open-Meteo API.
+A weather and calendar dashboard for the M5Paper S3 e-ink display, featuring current weather, an 8-hour forecast, a 3-day forecast, today's Google Calendar events, bilingual display labels, and intelligent power management. Built with the M5Unified library and powered by the Open-Meteo API.
 
 [![Arduino](https://img.shields.io/badge/Arduino-Compatible-brightgreen.svg)](https://www.arduino.cc/)
 [![PlatformIO](https://img.shields.io/badge/PlatformIO-Ready-orange.svg)](https://platformio.org/)
@@ -11,8 +11,10 @@ A comprehensive weather station for the M5Paper S3 e-ink display, featuring real
 ## Features
 
 - **Current Weather Conditions**: Large, easy-to-read temperature display with weather icons and conditions
-- **8-Hour Forecast**: Hourly weather predictions with temperature and icons
-- **Multiple Data Graphs**: Temperature, precipitation, humidity, and atmospheric pressure trends
+- **8-Hour Forecast**: Hourly weather predictions with temperature and weather icons
+- **3-Day Forecast**: Daily weather icons, high/low temperatures, and rain probability
+- **Google Calendar Events**: Shows today's events from a configured Google Calendar ICS URL
+- **Bilingual Main Display**: Choose English (default) or Chinese labels from the setup portal
 - **User-Configurable Refresh Intervals**: Set day (5-120 min) and night (15-240 min) update frequencies via web interface
 - **Smart Wake Detection**: Config button accessible only on manual reset (saves battery)
 - **Customizable Night Mode**: Set your own night hours (0-23) for reduced refresh rate
@@ -23,7 +25,7 @@ A comprehensive weather station for the M5Paper S3 e-ink display, featuring real
 - **Sun & Moon Information**: Sunrise/sunset times and moon phase display
 - **Wind Compass**: Real-time wind speed and direction visualization
 - **Battery & WiFi Status**: Always-visible system information
-- **Modular Architecture**: Clean, maintainable code structure (v1.12)
+- **Modular Architecture**: Clean, maintainable code structure
 
 ## Hardware Requirements
 
@@ -66,8 +68,8 @@ If you're new to embedded development, PlatformIO is an excellent development en
 
 - **Option A**: Clone with git:
   ```bash
-  git clone https://github.com/squirmen/PaperS3Weather.git
-  cd PaperS3Weather
+  git clone https://github.com/gemmayclee-droid/PaperS3Weather-Calendar.git
+  cd PaperS3Weather-Calendar
   ```
 
 - **Option B**: Download ZIP:
@@ -79,7 +81,7 @@ If you're new to embedded development, PlatformIO is an excellent development en
 
 1. Open VS Code
 2. Click **File → Open Folder**
-3. Select the `PaperS3Weather` folder
+3. Select the `PaperS3Weather-Calendar` folder
 4. Wait for PlatformIO to initialize and download dependencies (first time only)
 
 #### 4. Connect Your M5Paper S3
@@ -100,7 +102,7 @@ If you're new to embedded development, PlatformIO is an excellent development en
 After first boot, the device will display a configuration screen:
 
 1. **Connect to WiFi**:
-   - On your phone/computer, look for WiFi network: `M5Paper-Weather`
+   - On your phone/computer, look for WiFi network: `PaperS3Weather-Calendar`
    - Password: `configure`
    - Open browser and go to: `http://192.168.4.1`
 
@@ -110,7 +112,9 @@ After first boot, the device will display a configuration screen:
    - **City Name**: Your city (e.g., "Auckland", "New York", "Tokyo")
      - Just enter the city name, coordinates will be looked up automatically
      - Leave Latitude/Longitude fields blank unless you want manual coordinates
+   - **Google Calendar ICS URL**: Paste your Google Calendar iCal/ICS URL for today's events
    - **Temperature Unit**: Choose Fahrenheit (default) or Celsius from dropdown
+   - **Display Language**: Choose English (default) or Chinese labels for the main dashboard
    - **Night Mode**: Leave checked (default) to enable reduced refresh rate 10pm-5am
 
 3. **Save & Restart**:
@@ -130,8 +134,8 @@ Quick command-line workflow:
 
 ```bash
 # Clone repository
-git clone https://github.com/squirmen/PaperS3Weather.git
-cd PaperS3Weather
+git clone https://github.com/gemmayclee-droid/PaperS3Weather-Calendar.git
+cd PaperS3Weather-Calendar
 
 # Build project
 pio run
@@ -147,7 +151,7 @@ pio device monitor
 
 ### WiFi Configuration Portal
 
-**How to Access (v1.12+)**:
+**How to Access**:
 1. **Press the reset button** on your M5Paper S3 device
 2. Device wakes and displays weather
 3. **Within 30 seconds**, tap the **[CFG]** button in the bottom-right corner of the screen
@@ -156,9 +160,10 @@ pio device monitor
 **Automatic Portal Access**:
 - First boot (no WiFi configured)
 - Connection fails to saved network
+- Calendar ICS URL is missing
 
 **Portal Details**:
-- Network: `M5Paper-Weather`
+- Network: `PaperS3Weather-Calendar`
 - Password: `configure`
 - URL: `http://192.168.4.1`
 
@@ -195,7 +200,15 @@ This means you won't see geocoding errors in the config portal - they only occur
 
 ### Temperature Unit
 
-Choose between Fahrenheit (default) or Celsius via dropdown menu in configuration portal. This affects all temperature displays including current conditions, forecasts, and graphs.
+Choose between Fahrenheit (default) or Celsius via dropdown menu in configuration portal. This affects all temperature displays including current conditions and forecasts.
+
+### Display Language
+
+Choose between English (default) and Chinese in the configuration portal. The device stores the setting as `display_lang` and switches the main dashboard labels accordingly. Chinese rendering uses the built-in M5GFX Chinese font, so custom Traditional Chinese typography may require adding an external font asset.
+
+### Google Calendar ICS
+
+Paste a Google Calendar iCal/ICS URL in the setup portal. The device fetches the ICS feed after weather data and displays today's events in the Google Calendar panel. If the ICS URL is missing, the device opens the setup portal so the calendar can be configured.
 
 ### Night Mode
 
@@ -206,13 +219,14 @@ Choose between Fahrenheit (default) or Celsius via dropdown menu in configuratio
 ### Project Structure
 
 ```
-PaperS3Weather/
+PaperS3Weather-Calendar/
 ├── src/
 │   ├── main.cpp           # Main application entry point
 │   ├── constants.h        # Configuration constants and defines
 │   ├── utils.h/cpp        # Helper functions (temp, time, weather)
 │   ├── weather_api.h/cpp  # Open-Meteo API communication
 │   ├── config.h/cpp       # WiFi setup and web portal
+│   ├── calendar_api.h/cpp # Google Calendar ICS fetching and parsing
 │   ├── display.h/cpp      # Display rendering functions
 │   └── Icons.h            # Weather icon bitmap data
 ├── platformio.ini         # PlatformIO configuration
@@ -223,11 +237,11 @@ PaperS3Weather/
 
 ### Customizing Refresh Intervals and Night Mode
 
-**Via Web Interface (Recommended - v1.12+)**:
+**Via Web Interface (Recommended)**:
 
 1. Press the reset button on your M5Paper S3
 2. Within 30 seconds, tap the [CFG] button in bottom-right corner of display
-3. Connect to WiFi: `M5Paper-Weather` (password: `configure`)
+3. Connect to WiFi: `PaperS3Weather-Calendar` (password: `configure`)
 4. Navigate to: `http://192.168.4.1`
 5. Set custom refresh intervals:
    - **Day Time**: 5-120 minutes (how often to update during the day)
@@ -254,18 +268,18 @@ These are fallback defaults. User preferences saved via web interface take prece
 
 The display uses Bastelschlumpf's panel-based layout:
 
-- **Top Section**: 4 info panels (Current, Sun/Moon, Wind, Device)
+- **Top Section**: current weather details
 - **Middle Section**: 8 hourly forecast columns
-- **Bottom Section**: 4 data graphs
+- **Bottom Section**: 3-day forecast and Google Calendar events
 
-Panel positions are defined in `displayWeather()` function in `src/main.cpp`. Coordinates use absolute positioning for precise layout control.
+Panel positions are defined in `displayWeather()` function in `src/display.cpp`. Coordinates use absolute positioning for precise layout control.
 
 ### Adding Features
 
 The code is modular and well-structured for extensions:
 
 - **New weather data**: Modify `WeatherData` struct and `fetchWeatherData()`
-- **Additional graphs**: Add new `drawGraph()` calls in `displayWeather()`
+- **Additional panels**: Add new drawing calls in `displayWeather()`
 - **Custom panels**: Create new `draw*()` functions following existing patterns
 - **Different APIs**: Replace Open-Meteo calls in `fetchWeatherData()`
 
@@ -328,7 +342,7 @@ pio device monitor --baud 115200
 
 **Solutions**:
 - Enable Night Mode in configuration
-- Increase refresh intervals (edit main.cpp)
+- Increase refresh intervals in the setup portal
 - Check deep sleep is working (serial monitor should show sleep messages)
 - Verify WiFi signal is strong (weak signal increases power consumption)
 
@@ -337,7 +351,7 @@ pio device monitor --baud 115200
 **Problem**: Can't access `192.168.4.1`
 
 **Solutions**:
-- Ensure you're connected to `M5Paper-Weather` WiFi network
+- Ensure you're connected to `PaperS3Weather-Calendar` WiFi network
 - Disable mobile data on phone (forces use of WiFi)
 - Try `http://` explicitly: `http://192.168.4.1`
 - Clear browser cache or try different browser
@@ -460,4 +474,4 @@ For issues, questions, or contributions:
 
 ---
 
-**Enjoy your PaperS3Weather station!**
+**Enjoy your PaperS3Weather-Calendar station!**
