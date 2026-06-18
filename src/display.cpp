@@ -143,15 +143,22 @@ void drawHourlyForecast(int x, int y, int dx, int dy, int index) {
     canvas.setTextDatum(TC_DATUM);
     char hourStr[6];
     sprintf(hourStr, "%02d:00", forecastHour);
-    canvas.drawString(hourStr, x + dx / 2, y + 10);
-    canvas.drawString(formatTemp(currentWeather.hourly[index].temp), x + dx / 2, y + 30);
+    canvas.drawString(hourStr, x + dx / 2, y + 8);
     canvas.setTextDatum(TL_DATUM);
 
     bool isDay = isDaytime(forecastHour);
     int iconX = x + dx / 2 - 32;
-    int iconY = y + 50;
+    int iconY = y + 32;
     const uint8_t* weatherIcon = getWeatherIcon(currentWeather.hourly[index].weatherCode, isDay);
     drawIcon(iconX, iconY, weatherIcon, WEATHER_ICON_SIZE, WEATHER_ICON_SIZE, true);
+
+    canvas.setTextDatum(TC_DATUM);
+    canvas.setTextSize(3);
+    canvas.drawString(formatTemp(currentWeather.hourly[index].temp), x + dx / 2, y + 98);
+
+    canvas.setTextSize(1);
+    canvas.drawString(String((int)currentWeather.hourly[index].precip) + "% rain", x + dx / 2, y + 120);
+    canvas.setTextDatum(TL_DATUM);
 }
 
 void drawGraph(int x, int y, int dx, int dy, String title, int xMin, int xMax, float yMin, float yMax, float values[]) {
@@ -316,33 +323,25 @@ void drawTempGraph(int x, int y, int dx, int dy, String title, int xMin, int xMa
 }
 
 void drawCurrentConditions(int x, int y, int dx, int dy) {
-    canvas.setTextSize(3);
-    canvas.setTextDatum(TC_DATUM);
-    canvas.drawString("Current", x + dx / 2, y + 7);
     canvas.setTextDatum(TL_DATUM);
-    canvas.drawLine(x, y + PANEL_TITLE_HEIGHT, x + dx, y + PANEL_TITLE_HEIGHT, TFT_BLACK);
-
-    int spacing = dx / 4;
 
     // Draw main temperature (large font)
     canvas.setFont(&fonts::FreeSansBold24pt7b);
     canvas.setTextSize(2);
-    canvas.setTextDatum(TC_DATUM);
+    canvas.setTextDatum(TL_DATUM);
 
     String tempNum = String((int)currentWeather.temperature);
-    int mainTempX = x + spacing;
-    int mainTempY = y + MAIN_TEMP_Y_OFFSET;
+    int mainTempX = x + 26;
+    int mainTempY = y + 42;
     canvas.drawString(tempNum, mainTempX, mainTempY);
 
     // Draw degree symbol for main temperature
-    int tempWidth = canvas.textWidth(tempNum) * 2;
-    int degreeX = mainTempX + tempWidth / 2 - TEMP_DEGREE_OFFSET;
-    int degreeY = mainTempY + 13;
+    int degreeX = mainTempX + canvas.textWidth(tempNum) + 8;
+    int degreeY = mainTempY + 11;
     drawDegreeSymbol(degreeX, degreeY, TEMP_DEGREE_RADIUS_LARGE);
 
     canvas.setFont(nullptr);
     canvas.setTextFont(1);
-    canvas.setTextSize(1);
 
     // Draw weather icon
     struct tm timeinfo;
@@ -351,69 +350,68 @@ void drawCurrentConditions(int x, int y, int dx, int dy) {
     }
     bool isDay = isDaytime(timeinfo.tm_hour);
 
-    int iconX = x + dx - spacing - 25;
-    int iconY = mainTempY - 2;
+    int iconX = x + 215;
+    int iconY = y + 43;
     const uint8_t* weatherIcon = getWeatherIcon(currentWeather.weatherCode, isDay);
     drawIcon(iconX, iconY, weatherIcon, WEATHER_ICON_SIZE, WEATHER_ICON_SIZE, true);
 
     // Draw condition text
     String condition = getWeatherConditionText(currentWeather.weatherCode);
-    canvas.setTextDatum(TC_DATUM);
-
-    int conditionY = mainTempY + CONDITION_Y_OFFSET;
-    int availableWidth = dx - 20;
-    int textWidth = canvas.textWidth(condition) * 3;
-
-    if (textWidth > availableWidth) {
-        canvas.setTextSize(2);
-    } else {
-        canvas.setTextSize(3);
-    }
-    canvas.drawString(condition, x + dx / 2, conditionY);
-
-    // Draw "Feels Like" temperature
-    int feelsLikeY = y + FEELS_LIKE_Y_OFFSET;
+    canvas.setTextSize(condition.length() > 14 ? 2 : 3);
+    canvas.drawString(condition, x + 300, y + 50);
 
     canvas.setTextSize(2);
-    canvas.setTextDatum(TL_DATUM);
-    String feelsLikeLabel = "Feels Like:";
-    int labelX = x + spacing - 35;
-    canvas.drawString(feelsLikeLabel, labelX, feelsLikeY);
+    canvas.drawString(String("Feels ") + formatTemp(currentWeather.apparentTemperature), x + 300, y + 84);
+    canvas.drawString(String("Today ") + formatTemp(currentWeather.todayMinTemp) + " / " +
+                      formatTemp(currentWeather.todayMaxTemp), x + 300, y + 110);
 
-    int labelWidth = canvas.textWidth(feelsLikeLabel) * 2;
-    int feelsLikeTempX = labelX + labelWidth - 130;
+    int detailsX = x + 545;
+    canvas.drawString("Humidity", detailsX, y + 46);
+    canvas.drawString(String((int)currentWeather.humidity) + "%", detailsX + 120, y + 46);
+    canvas.drawString("Wind", detailsX, y + 74);
+    canvas.drawString(String(currentWeather.windSpeed, 1) + (useCelsius ? " km/h" : " mph"), detailsX + 120, y + 74);
+    canvas.drawString("Rain", detailsX, y + 102);
+    canvas.drawString(String(currentWeather.precipitation, 1) + " mm", detailsX + 120, y + 102);
+
+    int sunX = x + 760;
+    canvas.drawString("Sunrise", sunX, y + 46);
+    canvas.drawString(currentWeather.sunriseTime.length() > 0 ? currentWeather.sunriseTime : "--:--", sunX + 105, y + 46);
+    canvas.drawString("Sunset", sunX, y + 74);
+    canvas.drawString(currentWeather.sunsetTime.length() > 0 ? currentWeather.sunsetTime : "--:--", sunX + 105, y + 74);
+
+    canvas.setTextDatum(TL_DATUM);
+}
+
+String getForecastDayLabel(int dayOffset) {
+    struct tm timeinfo;
+    if (!getLocalTime(&timeinfo)) {
+        return "D+" + String(dayOffset);
+    }
+
+    timeinfo.tm_mday += dayOffset;
+    mktime(&timeinfo);
+
+    const char* days[] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
+    return String(days[timeinfo.tm_wday]);
+}
+
+void drawDailyForecast(int x, int y, int dx, int dy, int forecastIndex) {
+    canvas.setTextDatum(TC_DATUM);
+    canvas.setTextSize(3);
+    canvas.drawString(getForecastDayLabel(forecastIndex), x + dx / 2, y + 14);
 
     canvas.setTextSize(4);
-    canvas.setTextDatum(TL_DATUM);
-    String feelsTemp = String((int)currentWeather.apparentTemperature);
-    canvas.drawString(feelsTemp, feelsLikeTempX, feelsLikeY - 8);
+    canvas.drawString(formatTemp(currentWeather.forecastMinTemp[forecastIndex]) + " / " +
+                      formatTemp(currentWeather.forecastMaxTemp[forecastIndex]),
+                      x + dx / 2, y + 52);
 
-    // Draw degree symbol for "Feels Like"
-    int tempNumWidth = canvas.textWidth(feelsTemp);
-    int feelsLikeDegX = feelsLikeTempX + tempNumWidth + 3;
-    int feelsLikeDegY = feelsLikeY - 3;
-    drawDegreeSymbol(feelsLikeDegX, feelsLikeDegY, FEELS_LIKE_DEGREE_RADIUS);
-
-    // Draw today's low/high temperatures
-    canvas.setTextSize(3);
-    canvas.setTextDatum(TC_DATUM);
-
-    String lowTemp = "L:" + String((int)currentWeather.todayMinTemp);
-    String highTemp = "H:" + String((int)currentWeather.todayMaxTemp);
-
-    int tempTextY = y + TODAY_TEMP_Y_OFFSET;
-
-    canvas.drawString(lowTemp, x + spacing, tempTextY);
-    canvas.drawString(highTemp, x + dx - spacing, tempTextY);
-
-    // Draw degree symbols for low/high
-    int lowDegX = x + spacing + canvas.textWidth(lowTemp) / 2 + 5;
-    int highDegX = x + dx - spacing + canvas.textWidth(highTemp) / 2 + 5;
-    int degY = tempTextY + 1;
-
-    drawDegreeSymbol(lowDegX, degY, TODAY_TEMP_DEGREE_RADIUS);
-    drawDegreeSymbol(highDegX, degY, TODAY_TEMP_DEGREE_RADIUS);
-
+    canvas.setTextSize(2);
+    canvas.drawString(String("Rain ") + String(currentWeather.forecastRain[forecastIndex], 1) + " mm",
+                      x + dx / 2, y + 99);
+    canvas.drawString(String("Humidity ") + String((int)currentWeather.forecastHumidity[forecastIndex]) + "%",
+                      x + dx / 2, y + 122);
+    canvas.drawString(String("Pressure ") + String((int)currentWeather.forecastPressure[forecastIndex]) + " hPa",
+                      x + dx / 2, y + 136);
     canvas.setTextDatum(TL_DATUM);
 }
 
@@ -550,44 +548,48 @@ void displayWeather() {
     // Draw main border
     canvas.drawRect(PANEL_BORDER, HEADER_HEIGHT, SCREEN_WIDTH - 28, SCREEN_HEIGHT - 43, TFT_BLACK);
 
-    // Draw top row panels (Current, Wind, Sun, M5Paper Info)
-    canvas.drawRect(PANEL_SPACING, PANEL_TITLE_HEIGHT, SCREEN_WIDTH - 30, 251, TFT_BLACK);
-    canvas.drawLine(232, PANEL_TITLE_HEIGHT, 232, 286, TFT_BLACK);
-    canvas.drawLine(465, PANEL_TITLE_HEIGHT, 465, 286, TFT_BLACK);
-    canvas.drawLine(697, PANEL_TITLE_HEIGHT, 697, 286, TFT_BLACK);
+    // Draw current weather panel
+    const int contentX = PANEL_SPACING;
+    const int contentW = SCREEN_WIDTH - 30;
+    const int currentY = PANEL_TITLE_HEIGHT;
+    const int currentH = 140;
+    const int hourlyY = currentY + currentH;
+    const int hourlyH = 165;
+    const int dailyY = hourlyY + hourlyH;
+    const int dailyH = 180;
 
-    drawCurrentConditions(PANEL_SPACING, PANEL_TITLE_HEIGHT, 217, 251);
-    drawWindInfo(232, PANEL_TITLE_HEIGHT, 233, 251);
-    drawSunInfo(465, PANEL_TITLE_HEIGHT, 232, 251);
-    drawM5PaperInfo(697, PANEL_TITLE_HEIGHT, 245, 251);
+    canvas.drawRect(contentX, currentY, contentW, currentH, TFT_BLACK);
+    canvas.setTextDatum(TL_DATUM);
+    canvas.setTextSize(2);
+    canvas.drawString("Current Weather", contentX + 12, currentY + 10);
+    canvas.drawLine(contentX, currentY + PANEL_TITLE_HEIGHT, contentX + contentW, currentY + PANEL_TITLE_HEIGHT, TFT_BLACK);
+    drawCurrentConditions(contentX, currentY, contentW, currentH);
 
-    // Draw hourly forecast row
-    canvas.drawRect(PANEL_SPACING, 286, SCREEN_WIDTH - 30, 122, TFT_BLACK);
+    // Draw next 8 hours panel
+    canvas.drawRect(contentX, hourlyY, contentW, hourlyH, TFT_BLACK);
+    canvas.drawString("Next 8 Hours", contentX + 12, hourlyY + 10);
+    canvas.drawLine(contentX, hourlyY + PANEL_TITLE_HEIGHT, contentX + contentW, hourlyY + PANEL_TITLE_HEIGHT, TFT_BLACK);
+    int hourlyCellW = contentW / MAX_HOURLY;
     for (int i = 0; i < MAX_HOURLY; i++) {
-        int x = PANEL_SPACING + i * 116;
-        canvas.drawLine(x, 286, x, 408, TFT_BLACK);
-        drawHourlyForecast(x, 286, 116, 122, i);
+        int x = contentX + i * hourlyCellW;
+        if (i > 0) {
+            canvas.drawLine(x, hourlyY + PANEL_TITLE_HEIGHT, x, hourlyY + hourlyH, TFT_BLACK);
+        }
+        drawHourlyForecast(x, hourlyY + PANEL_TITLE_HEIGHT, hourlyCellW, hourlyH - PANEL_TITLE_HEIGHT, i);
     }
 
-    // Draw graphs row
-    canvas.drawRect(PANEL_SPACING, 408, SCREEN_WIDTH - 30, 122, TFT_BLACK);
-
-    float hourlyUVArray[MAX_HOURLY];
-    float hourlyPrecipArray[MAX_HOURLY];
-    float hourlyHumidityArray[MAX_HOURLY];
-    float hourlyPressureArray[MAX_HOURLY];
-
-    for (int i = 0; i < MAX_HOURLY; i++) {
-        hourlyUVArray[i] = currentWeather.hourly[i].uvIndex;
-        hourlyPrecipArray[i] = currentWeather.hourly[i].precip;
-        hourlyHumidityArray[i] = currentWeather.hourly[i].humidity;
-        hourlyPressureArray[i] = currentWeather.hourly[i].pressure;
+    // Draw next 3 days panel. Index 0 is today in the API arrays, so use 1-3.
+    canvas.drawRect(contentX, dailyY, contentW, dailyH, TFT_BLACK);
+    canvas.drawString("Next 3 Days", contentX + 12, dailyY + 10);
+    canvas.drawLine(contentX, dailyY + PANEL_TITLE_HEIGHT, contentX + contentW, dailyY + PANEL_TITLE_HEIGHT, TFT_BLACK);
+    int dailyCellW = contentW / 3;
+    for (int i = 0; i < 3; i++) {
+        int x = contentX + i * dailyCellW;
+        if (i > 0) {
+            canvas.drawLine(x, dailyY + PANEL_TITLE_HEIGHT, x, dailyY + dailyH, TFT_BLACK);
+        }
+        drawDailyForecast(x, dailyY + PANEL_TITLE_HEIGHT, dailyCellW, dailyH - PANEL_TITLE_HEIGHT, i + 1);
     }
-
-    drawGraph(PANEL_SPACING, 408, 232, 122, "UV Index", 0, 7, 0, 12, hourlyUVArray);
-    drawGraph(247, 408, 232, 122, "Precip (%)", 0, 7, 0, 100, hourlyPrecipArray);
-    drawGraph(479, 408, 232, 122, "Humidity (%)", 0, 7, 0, 100, hourlyHumidityArray);
-    drawGraph(711, 408, 232, 122, "Pressure (hPa)", 0, 7, 980, 1040, hourlyPressureArray);
 
     // Push to display
     canvas.pushSprite(0, 0);
