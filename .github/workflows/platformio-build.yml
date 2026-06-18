@@ -11,6 +11,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout
@@ -33,3 +35,15 @@ jobs:
           name: PaperS3Weather-firmware
           path: .pio/build/PaperS3/firmware.bin
           if-no-files-found: error
+
+      - name: Publish firmware release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: firmware-${{ github.sha }}
+          name: PaperS3Weather firmware ${{ github.sha }}
+          body: |
+            Automated firmware build from main.
+
+            Commit: ${{ github.sha }}
+          files: .pio/build/PaperS3/firmware.bin
