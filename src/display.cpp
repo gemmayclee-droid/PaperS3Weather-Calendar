@@ -397,21 +397,21 @@ String getForecastDayLabel(int dayOffset) {
 
 void drawDailyForecast(int x, int y, int dx, int dy, int forecastIndex) {
     canvas.setTextDatum(TC_DATUM);
-    canvas.setTextSize(3);
-    canvas.drawString(getForecastDayLabel(forecastIndex), x + dx / 2, y + 14);
+    canvas.setTextSize(4);
+    canvas.drawString(getForecastDayLabel(forecastIndex), x + dx / 2, y + 8);
 
     canvas.setTextSize(4);
     canvas.drawString(formatTemp(currentWeather.forecastMinTemp[forecastIndex]) + " / " +
                       formatTemp(currentWeather.forecastMaxTemp[forecastIndex]),
-                      x + dx / 2, y + 52);
+                      x + dx / 2, y + 50);
 
-    canvas.setTextSize(2);
+    canvas.setTextSize(3);
     canvas.drawString(String("Rain ") + String(currentWeather.forecastRain[forecastIndex], 1) + " mm",
-                      x + dx / 2, y + 99);
+                      x + dx / 2, y + 90);
     canvas.drawString(String("Humidity ") + String((int)currentWeather.forecastHumidity[forecastIndex]) + "%",
-                      x + dx / 2, y + 122);
+                      x + dx / 2, y + 118);
     canvas.drawString(String("Pressure ") + String((int)currentWeather.forecastPressure[forecastIndex]) + " hPa",
-                      x + dx / 2, y + 136);
+                      x + dx / 2, y + 146);
     canvas.setTextDatum(TL_DATUM);
 }
 
