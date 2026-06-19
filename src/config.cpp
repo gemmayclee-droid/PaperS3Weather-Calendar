@@ -193,7 +193,7 @@ void startConfigPortal() {
         html += "<h3>Google Calendar</h3>";
         html += "<label>ICS URL:</label>";
         html += "<input name='calendar_ics' value=\"" + htmlEscape(currentCalendarIcs) + "\" placeholder='https://calendar.google.com/calendar/ical/.../basic.ics' required>";
-        html += "<div class='help'>Paste a public or private Google Calendar iCal/ICS URL to show today's events. This field is required.</div>";
+        html += "<div class='help'>Paste the Google Calendar iCal/ICS address from Settings > Integrate calendar. It should contain /calendar/ical/ and end with /basic.ics. HTTP 404 means the URL is not a valid accessible ICS feed.</div>";
         html += "</div>";
 
         // Display Preferences

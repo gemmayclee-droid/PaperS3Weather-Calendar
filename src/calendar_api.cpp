@@ -12,11 +12,58 @@ String calendarStatusMessage = "";
 
 extern WeatherData currentWeather;
 
+static String urlDecode(String value) {
+    String decoded = "";
+    for (int i = 0; i < value.length(); i++) {
+        char c = value[i];
+        if (c == '%' && i + 2 < value.length()) {
+            char hex[3] = {value[i + 1], value[i + 2], '\0'};
+            decoded += (char)strtol(hex, nullptr, 16);
+            i += 2;
+        } else if (c == '+') {
+            decoded += ' ';
+        } else {
+            decoded += c;
+        }
+    }
+    return decoded;
+}
+
+static String queryParamValue(const String &url, const String &param) {
+    String marker = param + "=";
+    int start = url.indexOf("?" + marker);
+    if (start < 0) {
+        start = url.indexOf("&" + marker);
+    }
+    if (start < 0) {
+        return "";
+    }
+
+    start += marker.length() + 1;
+    int end = url.indexOf('&', start);
+    return end >= 0 ? url.substring(start, end) : url.substring(start);
+}
+
 static String normalizeCalendarUrl(String url) {
     url.trim();
     if (url.startsWith("webcal://")) {
         url = "https://" + url.substring(9);
     }
+
+    if (url.indexOf("calendar.google.com/calendar/embed") >= 0) {
+        String src = queryParamValue(url, "src");
+        if (src.length() > 0) {
+            return "https://calendar.google.com/calendar/ical/" + urlEncode(urlDecode(src)) + "/public/basic.ics";
+        }
+    }
+
+    if (url.indexOf("calendar.google.com/calendar/") >= 0) {
+        String cid = queryParamValue(url, "cid");
+        if (cid.length() > 0) {
+            return "https://calendar.google.com/calendar/ical/" + urlEncode(urlDecode(cid)) + "/public/basic.ics";
+        }
+    }
+
     return url;
 }
 
@@ -341,7 +388,7 @@ bool fetchCalendarData(const String &icsUrl) {
         Serial.printf("Calendar HTTP error code: %d (%s)\n", httpCode, errorText.c_str());
         http.end();
         calendarFetchOk = false;
-        calendarStatusMessage = "HTTP " + String(httpCode);
+        calendarStatusMessage = httpCode == HTTP_CODE_NOT_FOUND ? "HTTP 404 Check ICS URL" : "HTTP " + String(httpCode);
         if (errorText.length() > 0) {
             calendarStatusMessage += " " + errorText;
         }

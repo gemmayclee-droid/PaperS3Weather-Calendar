@@ -87,10 +87,10 @@ The calendar panel reads an iCal/ICS feed. In Google Calendar:
 1. Open Google Calendar in a browser.
 2. Open the calendar's settings.
 3. Find **Integrate calendar**.
-4. Copy the public or secret iCal address.
+4. Copy **Secret address in iCal format** or **Public address in iCal format**.
 5. Paste that URL into the setup portal's **Google Calendar ICS URL** field.
 
-The device accepts `https://...` and converts `webcal://...` URLs to HTTPS automatically. Google Calendar redirects are followed during sync.
+The URL should contain `/calendar/ical/` and end with `/basic.ics`. The device accepts `https://...`, converts `webcal://...` URLs to HTTPS automatically, and can convert common Google `embed?src=` / `?cid=` links to a public ICS URL when the calendar is public. Google Calendar redirects are followed during sync. `HTTP 404` means Google could not find an accessible ICS feed at the configured URL; use the secret iCal address for private calendars.
 
 Calendar matching uses the weather location's local date from Open-Meteo. The parser displays up to three events whose `DTSTART` is today and supports simple daily/weekly `RRULE` recurring events. Long multi-day events may need future parser improvements.
 
