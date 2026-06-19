@@ -13,7 +13,7 @@
 - Traditional Chinese display now uses the M5GFX `efontTW` font family to avoid missing glyph boxes.
 - Google Calendar event text now falls back between Traditional and Simplified Chinese M5GFX fonts per character, reducing missing glyph boxes when calendar titles mix scripts.
 - Traditional Chinese mode now localizes city names after language switching and converts common Simplified Chinese calendar/event text to Traditional Chinese for display.
-- Cleaned large screenshot files from the repository and documented that only the newest automated firmware release is retained.
+- Replaced the large dashboard screenshots with smaller README preview images and documented that only the newest automated firmware release is retained.
 - Updated the GitHub Actions release workflow to remove older `firmware-*` releases and tags after publishing the newest firmware.
 
 ### Notes

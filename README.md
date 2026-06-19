@@ -2,6 +2,10 @@
 
 PaperS3Weather-Calendar is a weather and Google Calendar dashboard for the M5Paper S3 e-ink display. It shows current weather, the next 8 hours, the next 3 days, and today's calendar events on one screen, with English, Simplified Chinese, or Traditional Chinese display labels selected from the setup portal.
 
+| English | 简体中文 | 繁體中文 |
+| --- | --- | --- |
+| ![English dashboard](M5PaperS3_Weather_Calendar_EN.png) | ![Simplified Chinese dashboard](M5PaperS3_Weather_Calendar_CN.png) | ![Traditional Chinese dashboard](M5PaperS3_Weather_Calendar_ZH.png) |
+
 Firmware is built automatically with GitHub Actions. Download the current `firmware.bin` from the project's [GitHub Releases](https://github.com/gemmayclee-droid/PaperS3Weather-Calendar/releases). The repository keeps only the newest firmware release to avoid stale downloads.
 
 [![Arduino](https://img.shields.io/badge/Arduino-Compatible-brightgreen.svg)](https://www.arduino.cc/)
