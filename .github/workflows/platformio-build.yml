@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - "codex/**"
   pull_request:
   workflow_dispatch:
 
@@ -26,13 +25,13 @@ jobs:
       - name: Install PlatformIO
         run: python -m pip install --upgrade platformio
 
-      - name: Build PaperS3 firmware
+      - name: Build PaperS3Weather-Calendar firmware
         run: pio run -e PaperS3
 
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v4
         with:
-          name: PaperS3Weather-firmware
+          name: PaperS3Weather-Calendar-firmware
           path: .pio/build/PaperS3/firmware.bin
           if-no-files-found: error
 
@@ -41,7 +40,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: firmware-${{ github.sha }}
-          name: PaperS3Weather firmware ${{ github.sha }}
+          name: PaperS3Weather-Calendar firmware ${{ github.sha }}
           body: |
             Automated firmware build from main.
 
