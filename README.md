@@ -14,7 +14,7 @@ Firmware is built automatically with GitHub Actions. Download the latest `firmwa
 
 - **Single-screen dashboard**: Current weather, next 8 hours, next 3 days, and Google Calendar events.
 - **Current weather**: Large temperature, weather condition, feels-like temperature, daily high/low, humidity, wind, rain, sunrise, sunset, and date.
-- **Next 8 hours**: Hourly time, weather icon, and temperature.
+- **Next 8 hours**: Hourly time, weather icon, and temperature, starting two hours from the current local weather time.
 - **Next 3 days**: Date, weather icon, high/low temperature, and rain probability.
 - **Google Calendar**: Shows today's events from a configured Google Calendar ICS URL.
 - **Display language**: English by default, with optional Chinese labels and localized city names from the setup portal or the main-screen language button.

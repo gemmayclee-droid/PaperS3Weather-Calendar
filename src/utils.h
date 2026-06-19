@@ -24,6 +24,7 @@ struct WeatherData {
     String localDateYmd;
 
     struct {
+        String timeLabel;
         float temp;
         float precip;
         float humidity;

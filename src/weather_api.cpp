@@ -8,6 +8,22 @@ extern bool useCelsius;
 extern bool useChineseDisplay;
 extern WeatherData currentWeather;
 
+static int findHourlyIndex(JsonArray hourlyTime, const String &currentTime) {
+    if (currentTime.length() < 13) {
+        return 0;
+    }
+
+    String currentHour = currentTime.substring(0, 13);
+    for (int i = 0; i < hourlyTime.size(); i++) {
+        String hourValue = hourlyTime[i].as<String>();
+        if (hourValue.startsWith(currentHour)) {
+            return i;
+        }
+    }
+
+    return 0;
+}
+
 bool fetchWeatherData(float latitude, float longitude) {
     if (WiFi.status() != WL_CONNECTED) {
         Serial.println("WiFi not connected");
@@ -55,6 +71,7 @@ bool fetchWeatherData(float latitude, float longitude) {
                 currentWeather.utcOffsetSeconds = doc["utc_offset_seconds"].is<int>() ?
                                                   doc["utc_offset_seconds"].as<int>() :
                                                   (TIMEZONE_OFFSET_HOURS * 3600);
+                String currentTime = doc["current"]["time"].as<String>();
 
                 Serial.println("\n=== Current Conditions from API ===");
                 Serial.printf("Temperature: %.1f\n", currentWeather.temperature);
@@ -81,14 +98,8 @@ bool fetchWeatherData(float latitude, float longitude) {
                     currentWeather.sunsetTime = sunsetStr.substring(11, 16);
                 }
 
-                // Get current hour for indexing
-                struct tm timeinfo;
-                if (!getLocalTime(&timeinfo)) {
-                    timeinfo.tm_hour = 0;
-                }
-                int currentHourOffset = timeinfo.tm_hour;
-
                 // Extract hourly data
+                JsonArray hourlyTime = doc["hourly"]["time"];
                 JsonArray hourlyTemp = doc["hourly"]["temperature_2m"];
                 JsonArray hourlyPrecip = doc["hourly"]["precipitation_probability"];
                 JsonArray hourlyHumidity = doc["hourly"]["relative_humidity_2m"];
@@ -96,17 +107,34 @@ bool fetchWeatherData(float latitude, float longitude) {
                 JsonArray hourlyUV = doc["hourly"]["uv_index"];
                 JsonArray hourlyWeatherCode = doc["hourly"]["weather_code"];
 
-                Serial.printf("Current hour: %d, using as offset into API arrays\n", currentHourOffset);
+                int currentHourIndex = findHourlyIndex(hourlyTime, currentTime);
+                int forecastStartIndex = currentHourIndex + 2;
 
-                for (int i = 0; i < MAX_HOURLY && (currentHourOffset + i) < hourlyTemp.size(); i++) {
-                    int apiIndex = currentHourOffset + i;
+                Serial.printf("Current API time: %s, index: %d, forecast starts at index: %d\n",
+                              currentTime.c_str(), currentHourIndex, forecastStartIndex);
+
+                for (int i = 0; i < MAX_HOURLY; i++) {
+                    currentWeather.hourly[i].timeLabel = "--:--";
+                    currentWeather.hourly[i].temp = currentWeather.temperature;
+                    currentWeather.hourly[i].precip = 0;
+                    currentWeather.hourly[i].humidity = currentWeather.humidity;
+                    currentWeather.hourly[i].pressure = 0;
+                    currentWeather.hourly[i].uvIndex = 0;
+                    currentWeather.hourly[i].weatherCode = currentWeather.weatherCode;
+                }
+
+                for (int i = 0; i < MAX_HOURLY && (forecastStartIndex + i) < hourlyTemp.size(); i++) {
+                    int apiIndex = forecastStartIndex + i;
+                    String hourValue = hourlyTime[apiIndex].as<String>();
+                    currentWeather.hourly[i].timeLabel = hourValue.length() >= 16 ? hourValue.substring(11, 16) : "--:--";
                     currentWeather.hourly[i].temp = hourlyTemp[apiIndex];
                     currentWeather.hourly[i].precip = hourlyPrecip[apiIndex];
                     currentWeather.hourly[i].humidity = hourlyHumidity[apiIndex];
                     currentWeather.hourly[i].pressure = hourlyPressure[apiIndex];
                     currentWeather.hourly[i].uvIndex = (apiIndex < hourlyUV.size()) ? hourlyUV[apiIndex].as<float>() : 0.0f;
                     currentWeather.hourly[i].weatherCode = hourlyWeatherCode[apiIndex];
-                    Serial.printf("Hour %d (API index %d) UV: %.1f\n", i, apiIndex, currentWeather.hourly[i].uvIndex);
+                    Serial.printf("Hour %d (%s, API index %d) UV: %.1f\n",
+                                  i, currentWeather.hourly[i].timeLabel.c_str(), apiIndex, currentWeather.hourly[i].uvIndex);
                 }
 
                 // Extract daily forecast

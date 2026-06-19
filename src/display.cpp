@@ -189,17 +189,13 @@ void drawWindCompass(int x, int y, float angle, float windspeed, int radius) {
 }
 
 void drawHourlyForecast(int x, int y, int dx, int dy, int index) {
-    struct tm timeinfo;
-    if (!getLocalTime(&timeinfo)) {
-        timeinfo.tm_hour = 0;
-    }
-    int forecastHour = (timeinfo.tm_hour + index + 1) % 24;
+    String timeLabel = currentWeather.hourly[index].timeLabel.length() > 0 ?
+                       currentWeather.hourly[index].timeLabel : "--:--";
+    int forecastHour = timeLabel.length() >= 2 ? timeLabel.substring(0, 2).toInt() : 12;
 
     useDefaultFont(2);
     canvas.setTextDatum(TC_DATUM);
-    char hourStr[6];
-    sprintf(hourStr, "%02d:00", forecastHour);
-    canvas.drawString(hourStr, x + dx / 2, y + 8);
+    canvas.drawString(timeLabel, x + dx / 2, y + 8);
     canvas.setTextDatum(TL_DATUM);
 
     bool isDay = isDaytime(forecastHour);
