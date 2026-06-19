@@ -17,7 +17,7 @@ Firmware is built automatically with GitHub Actions. Download the latest `firmwa
 - **Next 8 hours**: Hourly time, weather icon, and temperature.
 - **Next 3 days**: Date, weather icon, high/low temperature, and rain probability.
 - **Google Calendar**: Shows today's events from a configured Google Calendar ICS URL.
-- **Display language**: English by default, with optional Chinese labels from the setup portal.
+- **Display language**: English by default, with optional Chinese labels from the setup portal or the main-screen language button.
 - **Web setup portal**: Configure WiFi, location, calendar ICS URL, temperature unit, language, refresh intervals, and night mode.
 - **Automatic setup prompt**: Opens setup when WiFi is missing, WiFi fails, or the calendar ICS URL has not been configured.
 - **Power saving**: Deep sleep between updates, with separate day/night refresh intervals.
@@ -100,6 +100,8 @@ The setup portal includes a **Display Language** option:
 - **English**: Default.
 - **Chinese**: Main dashboard labels use the built-in M5GFX Chinese font.
 
+The main screen also has a language toggle in the bottom-left corner. After a manual reset or power-on, tap `[中文]` to switch from English to Chinese, or `[EN]` to switch back to English. The setting is saved immediately.
+
 Chinese labels currently use simplified Chinese strings because they are the safest fit for the built-in font. Traditional Chinese typography may require adding an external font asset.
 
 ## Developer Workflow
@@ -121,6 +123,8 @@ pio device monitor
 2. Device wakes and displays weather
 3. **Within 30 seconds**, tap the **[CFG]** button in the bottom-right corner of the screen
 4. Configuration portal opens automatically
+
+The same 30-second interaction window also enables the bottom-left language toggle button.
 
 **Automatic Portal Access**:
 - First boot (no WiFi configured)

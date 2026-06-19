@@ -33,6 +33,17 @@ String cityName = DEFAULT_CITY;
 unsigned long lastRefreshTime = 0;
 int refreshCounter = 0;
 
+void toggleDisplayLanguage() {
+    useChineseDisplay = !useChineseDisplay;
+
+    preferences.begin("weather", false);
+    preferences.putString("display_lang", useChineseDisplay ? "zh" : "en");
+    preferences.end();
+
+    Serial.printf("Display language switched to: %s\n", useChineseDisplay ? "Chinese" : "English");
+    displayWeather();
+}
+
 void enterDeepSleep(unsigned long sleepTimeMs) {
     Serial.printf("Entering deep sleep for %lu ms (%lu minutes)\n",
                   sleepTimeMs, sleepTimeMs / 60000);
@@ -194,6 +205,7 @@ void loop() {
             Serial.println("\n*** Manual wake detected (reset button or power on) ***");
             Serial.println("*** Waiting 30 seconds for user interaction ***");
             Serial.println("*** Tap bottom-right corner of screen for CONFIG ***");
+            Serial.println("*** Tap bottom-left corner of screen to switch language ***");
 
             unsigned long startWait = millis();
             const unsigned long waitDuration = USER_INTERACTION_TIMEOUT_MS;
@@ -208,8 +220,16 @@ void loop() {
                     int touchX = touch.x;
                     int touchY = touch.y;
 
+                    // Check if touch is in language toggle area (bottom-left corner)
+                    if (touchX < LANG_BUTTON_TOUCH_WIDTH &&
+                        touchY > (SCREEN_HEIGHT - LANG_BUTTON_TOUCH_HEIGHT)) {
+                        Serial.println("\n*** LANGUAGE button pressed! ***");
+                        toggleDisplayLanguage();
+                        startWait = millis();
+                    }
+
                     // Check if touch is in CFG area (bottom-right corner)
-                    if (touchX > (SCREEN_WIDTH - CFG_BUTTON_TOUCH_WIDTH) &&
+                    else if (touchX > (SCREEN_WIDTH - CFG_BUTTON_TOUCH_WIDTH) &&
                         touchY > (SCREEN_HEIGHT - CFG_BUTTON_TOUCH_HEIGHT)) {
                         Serial.println("\n*** CONFIG button pressed! ***");
                         M5.Display.startWrite();

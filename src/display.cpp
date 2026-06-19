@@ -624,6 +624,17 @@ void displayWeather() {
     useDisplayFont(1);
     canvas.drawString(labelText("[CFG]", "[设置]"), SCREEN_WIDTH - (useChineseDisplay ? 62 : 50), SCREEN_HEIGHT - 20);
 
+    // Draw language toggle indicator
+    canvas.setTextDatum(TL_DATUM);
+    if (useChineseDisplay) {
+        useDefaultFont(1);
+        canvas.drawString("[EN]", 20, SCREEN_HEIGHT - 20);
+    } else {
+        canvas.setFont(&fonts::efontCN_16);
+        canvas.setTextSize(1);
+        canvas.drawString("[中文]", 20, SCREEN_HEIGHT - 20);
+    }
+
     // Draw main border
     canvas.drawRect(PANEL_BORDER, HEADER_HEIGHT, SCREEN_WIDTH - 28, SCREEN_HEIGHT - 43, TFT_BLACK);
 

@@ -25,6 +25,8 @@
 #define USER_INTERACTION_TIMEOUT_MS 30000   // 30 seconds to tap screen before sleep
 #define CFG_BUTTON_TOUCH_WIDTH 100          // Width of touchable CFG area
 #define CFG_BUTTON_TOUCH_HEIGHT 40          // Height of touchable CFG area
+#define LANG_BUTTON_TOUCH_WIDTH 120         // Width of touchable language toggle area
+#define LANG_BUTTON_TOUCH_HEIGHT 40         // Height of touchable language toggle area
 
 // Weather Data Limits
 #define MAX_HOURLY 8
