@@ -1,6 +1,7 @@
 # PaperS3Weather-Calendar
 
-![PaperS3Weather](M5PaperS3_Weather_Calendar_EN.png)(M5PaperS3_Weather_Calendar_CN.png)
+![PaperS3Weather-Calendar](M5PaperS3_Weather_Calendar_EN.png)
+![PaperS3Weather-Calendar](M5PaperS3_Weather_Calendar_CN.png)
 
 PaperS3Weather-Calendar is a weather and Google Calendar dashboard for the M5Paper S3 e-ink display. It shows current weather, the next 8 hours, the next 3 days, and today's calendar events on one screen, with English or Chinese display labels selected from the setup portal.
 
