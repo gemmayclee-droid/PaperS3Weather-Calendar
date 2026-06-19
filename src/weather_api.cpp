@@ -221,7 +221,7 @@ bool geocodeCity(String cityName, float &latitude, float &longitude, String *res
                 String foundCity = doc["results"][0]["name"].as<String>();
                 String country = doc["results"][0]["country"].as<String>();
                 if (resolvedName != nullptr && foundCity.length() > 0) {
-                    *resolvedName = foundCity;
+                    *resolvedName = localizeCityName(foundCity);
                 }
 
                 Serial.printf("Found: %s, %s at %.4f, %.4f\n",

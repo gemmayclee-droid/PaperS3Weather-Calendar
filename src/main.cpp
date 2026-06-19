@@ -57,6 +57,14 @@ void toggleDisplayLanguage() {
 
     Serial.printf("Display language switched to: %s\n",
                   !useChineseDisplay ? "English" : (useTraditionalChinese ? "Traditional Chinese" : "Simplified Chinese"));
+
+    if (WiFi.status() == WL_CONNECTED) {
+        float latitude, longitude;
+        loadPreferences(latitude, longitude, cityName);
+    } else {
+        cityName = localizeCityName(cityName);
+    }
+
     displayWeather();
 }
 

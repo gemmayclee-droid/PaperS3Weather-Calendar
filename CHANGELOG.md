@@ -12,6 +12,7 @@
 - Documented the current single-screen weather and calendar layout.
 - Traditional Chinese display now uses the M5GFX `efontTW` font family to avoid missing glyph boxes.
 - Google Calendar event text now falls back between Traditional and Simplified Chinese M5GFX fonts per character, reducing missing glyph boxes when calendar titles mix scripts.
+- Traditional Chinese mode now localizes city names after language switching and converts common Simplified Chinese calendar/event text to Traditional Chinese for display.
 
 ### Notes
 - Simplified and Traditional Chinese rendering use the built-in M5GFX Chinese font.

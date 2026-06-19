@@ -123,7 +123,7 @@ static String cleanSummary(String summary) {
     summary.replace("\\;", ";");
     summary.replace("\\\\", "\\");
     summary.trim();
-    return summary;
+    return localizeDisplayText(summary);
 }
 
 static long daysFromCivil(int year, unsigned month, unsigned day) {
