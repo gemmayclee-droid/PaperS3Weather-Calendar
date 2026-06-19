@@ -128,7 +128,7 @@ static bool rruleIncludesToday(const String &rrule, const String &dtstart, const
     int untilPos = rrule.indexOf("UNTIL=");
     if (untilPos >= 0) {
         String untilDate = rrule.substring(untilPos + 6, untilPos + 14);
-        if (untilDate.length() == 8 && today > untilDate) {
+        if (untilDate.length() == 8 && today.compareTo(untilDate) > 0) {
             return false;
         }
     }
@@ -138,7 +138,10 @@ static bool rruleIncludesToday(const String &rrule, const String &dtstart, const
     if (intervalPos >= 0) {
         int endPos = rrule.indexOf(';', intervalPos);
         String intervalStr = endPos >= 0 ? rrule.substring(intervalPos + 9, endPos) : rrule.substring(intervalPos + 9);
-        interval = max(1, intervalStr.toInt());
+        interval = intervalStr.toInt();
+        if (interval < 1) {
+            interval = 1;
+        }
     }
 
     if (rrule.indexOf("FREQ=DAILY") >= 0) {
