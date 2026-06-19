@@ -17,7 +17,7 @@ Firmware is built automatically with GitHub Actions. Download the latest `firmwa
 - **Next 8 hours**: Hourly time, weather icon, and temperature.
 - **Next 3 days**: Date, weather icon, high/low temperature, and rain probability.
 - **Google Calendar**: Shows today's events from a configured Google Calendar ICS URL.
-- **Display language**: English by default, with optional Chinese labels from the setup portal or the main-screen language button.
+- **Display language**: English by default, with optional Chinese labels and localized city names from the setup portal or the main-screen language button.
 - **Web setup portal**: Configure WiFi, location, calendar ICS URL, temperature unit, language, refresh intervals, and night mode.
 - **Automatic setup prompt**: Opens setup when WiFi is missing, WiFi fails, or the calendar ICS URL has not been configured.
 - **Power saving**: Deep sleep between updates, with separate day/night refresh intervals.
@@ -91,7 +91,7 @@ The calendar panel reads an iCal/ICS feed. In Google Calendar:
 
 The device accepts `https://...` and converts `webcal://...` URLs to HTTPS automatically.
 
-Current calendar parsing is intentionally lightweight. It displays up to three events whose `DTSTART` is today. Recurring events that only appear through `RRULE` expansion and long multi-day events may need future parser improvements.
+Calendar matching uses the weather location's local date from Open-Meteo. The parser displays up to three events whose `DTSTART` is today and supports simple daily/weekly `RRULE` recurring events. Long multi-day events may need future parser improvements.
 
 ## Display Language
 

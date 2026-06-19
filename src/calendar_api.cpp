@@ -1,9 +1,14 @@
 #include "calendar_api.h"
 #include "constants.h"
+#include "utils.h"
 #include <HTTPClient.h>
+#include <time.h>
 
 String calendarEvents[MAX_CALENDAR_EVENTS];
 int calendarEventCount = 0;
+bool calendarFetchOk = true;
+
+extern WeatherData currentWeather;
 
 static String normalizeCalendarUrl(String url) {
     url.trim();
@@ -14,10 +19,20 @@ static String normalizeCalendarUrl(String url) {
 }
 
 static String todayString() {
-    struct tm timeinfo;
-    if (!getLocalTime(&timeinfo)) {
+    if (currentWeather.localDateYmd.length() == 8) {
+        return currentWeather.localDateYmd;
+    }
+
+    time_t now = time(nullptr);
+    if (now <= 0) {
         return "";
     }
+
+    int utcOffsetSeconds = currentWeather.utcOffsetSeconds != 0 ? currentWeather.utcOffsetSeconds : (TIMEZONE_OFFSET_HOURS * 3600);
+    now += utcOffsetSeconds;
+
+    struct tm timeinfo;
+    gmtime_r(&now, &timeinfo);
 
     char dateStr[9];
     sprintf(dateStr, "%04d%02d%02d", timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday);
@@ -71,7 +86,87 @@ static String eventTimeLabel(const String &dtstart) {
     return dtstart.substring(timePos + 1, timePos + 3) + ":" + dtstart.substring(timePos + 3, timePos + 5);
 }
 
+static int dateToEpochDay(const String &date) {
+    if (date.length() < 8) {
+        return -1;
+    }
+
+    struct tm timeinfo = {};
+    timeinfo.tm_year = date.substring(0, 4).toInt() - 1900;
+    timeinfo.tm_mon = date.substring(4, 6).toInt() - 1;
+    timeinfo.tm_mday = date.substring(6, 8).toInt();
+    timeinfo.tm_isdst = -1;
+    return (int)(mktime(&timeinfo) / 86400);
+}
+
+static int weekdayIndex(const String &date) {
+    if (date.length() < 8) {
+        return -1;
+    }
+
+    struct tm timeinfo = {};
+    timeinfo.tm_year = date.substring(0, 4).toInt() - 1900;
+    timeinfo.tm_mon = date.substring(4, 6).toInt() - 1;
+    timeinfo.tm_mday = date.substring(6, 8).toInt();
+    timeinfo.tm_isdst = -1;
+    mktime(&timeinfo);
+    return timeinfo.tm_wday;
+}
+
+static bool rruleIncludesToday(const String &rrule, const String &dtstart, const String &today) {
+    if (rrule.length() == 0 || dtstart.length() < 8 || today.length() < 8) {
+        return false;
+    }
+
+    String startDate = dtstart.substring(0, 8);
+    int startDay = dateToEpochDay(startDate);
+    int todayDay = dateToEpochDay(today);
+    if (startDay < 0 || todayDay < startDay) {
+        return false;
+    }
+
+    int untilPos = rrule.indexOf("UNTIL=");
+    if (untilPos >= 0) {
+        String untilDate = rrule.substring(untilPos + 6, untilPos + 14);
+        if (untilDate.length() == 8 && today > untilDate) {
+            return false;
+        }
+    }
+
+    int interval = 1;
+    int intervalPos = rrule.indexOf("INTERVAL=");
+    if (intervalPos >= 0) {
+        int endPos = rrule.indexOf(';', intervalPos);
+        String intervalStr = endPos >= 0 ? rrule.substring(intervalPos + 9, endPos) : rrule.substring(intervalPos + 9);
+        interval = max(1, intervalStr.toInt());
+    }
+
+    if (rrule.indexOf("FREQ=DAILY") >= 0) {
+        return ((todayDay - startDay) % interval) == 0;
+    }
+
+    if (rrule.indexOf("FREQ=WEEKLY") >= 0) {
+        if (((todayDay - startDay) / 7) % interval != 0) {
+            return false;
+        }
+
+        int bydayPos = rrule.indexOf("BYDAY=");
+        if (bydayPos < 0) {
+            return weekdayIndex(startDate) == weekdayIndex(today);
+        }
+
+        int endPos = rrule.indexOf(';', bydayPos);
+        String byday = endPos >= 0 ? rrule.substring(bydayPos + 6, endPos) : rrule.substring(bydayPos + 6);
+        const char* weekdays[] = {"SU", "MO", "TU", "WE", "TH", "FR", "SA"};
+        int todayWeekday = weekdayIndex(today);
+        return todayWeekday >= 0 && byday.indexOf(weekdays[todayWeekday]) >= 0;
+    }
+
+    return false;
+}
+
 static void clearCalendarEvents() {
+    calendarFetchOk = true;
     calendarEventCount = 0;
     for (int i = 0; i < MAX_CALENDAR_EVENTS; i++) {
         calendarEvents[i] = "";
@@ -84,6 +179,7 @@ bool fetchCalendarData(const String &icsUrl) {
     String url = normalizeCalendarUrl(icsUrl);
     if (url.length() == 0) {
         Serial.println("No Google Calendar ICS URL configured");
+        calendarFetchOk = false;
         return true;
     }
 
@@ -95,6 +191,7 @@ bool fetchCalendarData(const String &icsUrl) {
     if (httpCode != HTTP_CODE_OK) {
         Serial.printf("Calendar HTTP error code: %d\n", httpCode);
         http.end();
+        calendarFetchOk = false;
         return false;
     }
 
@@ -104,12 +201,14 @@ bool fetchCalendarData(const String &icsUrl) {
     String today = todayString();
     if (today.length() == 0) {
         Serial.println("Calendar skipped: local date unavailable");
+        calendarFetchOk = false;
         return false;
     }
 
     bool inEvent = false;
     String dtstart = "";
     String summary = "";
+    String rrule = "";
 
     int pos = 0;
     while (pos < payload.length() && calendarEventCount < MAX_CALENDAR_EVENTS) {
@@ -119,11 +218,13 @@ bool fetchCalendarData(const String &icsUrl) {
             inEvent = true;
             dtstart = "";
             summary = "";
+            rrule = "";
             continue;
         }
 
         if (line == "END:VEVENT") {
-            if (inEvent && dtstart.startsWith(today) && summary.length() > 0) {
+            bool isToday = dtstart.startsWith(today) || rruleIncludesToday(rrule, dtstart, today);
+            if (inEvent && isToday && summary.length() > 0) {
                 calendarEvents[calendarEventCount++] = eventTimeLabel(dtstart) + " " + cleanSummary(summary);
             }
             inEvent = false;
@@ -138,6 +239,8 @@ bool fetchCalendarData(const String &icsUrl) {
             dtstart = valueAfterColon(line);
         } else if (line.startsWith("SUMMARY")) {
             summary = valueAfterColon(line);
+        } else if (line.startsWith("RRULE")) {
+            rrule = valueAfterColon(line);
         }
     }
 

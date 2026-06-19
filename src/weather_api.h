@@ -8,6 +8,6 @@
 bool fetchWeatherData(float latitude, float longitude);
 
 // Geocode city name to coordinates
-bool geocodeCity(String cityName, float &latitude, float &longitude);
+bool geocodeCity(String cityName, float &latitude, float &longitude, String *resolvedName = nullptr);
 
 #endif // WEATHER_API_H

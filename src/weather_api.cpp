@@ -5,6 +5,7 @@
 #include <ArduinoJson.h>
 
 extern bool useCelsius;
+extern bool useChineseDisplay;
 extern WeatherData currentWeather;
 
 bool fetchWeatherData(float latitude, float longitude) {
@@ -51,6 +52,9 @@ bool fetchWeatherData(float latitude, float longitude) {
                 currentWeather.windDir = doc["current"]["wind_direction_10m"];
                 currentWeather.precipitation = doc["current"]["precipitation"];
                 currentWeather.weatherCode = doc["current"]["weather_code"];
+                currentWeather.utcOffsetSeconds = doc["utc_offset_seconds"].is<int>() ?
+                                                  doc["utc_offset_seconds"].as<int>() :
+                                                  (TIMEZONE_OFFSET_HOURS * 3600);
 
                 Serial.println("\n=== Current Conditions from API ===");
                 Serial.printf("Temperature: %.1f\n", currentWeather.temperature);
@@ -58,8 +62,16 @@ bool fetchWeatherData(float latitude, float longitude) {
                 Serial.printf("Humidity: %.0f%%\n", currentWeather.humidity);
                 Serial.printf("Wind: %.1f @ %.0f°\n", currentWeather.windSpeed, currentWeather.windDir);
                 Serial.printf("Weather Code: %d\n", currentWeather.weatherCode);
+                Serial.printf("UTC offset seconds: %d\n", currentWeather.utcOffsetSeconds);
 
                 // Extract sunrise/sunset
+                String localDateStr = doc["daily"]["time"][0].as<String>();
+                if (localDateStr.length() >= 10) {
+                    currentWeather.localDateYmd = localDateStr.substring(0, 4) +
+                                                  localDateStr.substring(5, 7) +
+                                                  localDateStr.substring(8, 10);
+                }
+
                 String sunriseStr = doc["daily"]["sunrise"][0].as<String>();
                 String sunsetStr = doc["daily"]["sunset"][0].as<String>();
                 if (sunriseStr.length() > 10) {
@@ -142,7 +154,7 @@ bool fetchWeatherData(float latitude, float longitude) {
     return false;
 }
 
-bool geocodeCity(String cityName, float &latitude, float &longitude) {
+bool geocodeCity(String cityName, float &latitude, float &longitude, String *resolvedName) {
     if (WiFi.status() != WL_CONNECTED) {
         Serial.println("WiFi not connected");
         return false;
@@ -151,7 +163,9 @@ bool geocodeCity(String cityName, float &latitude, float &longitude) {
     HTTPClient http;
     String url = "https://geocoding-api.open-meteo.com/v1/search?name=";
     url += urlEncode(cityName);
-    url += "&count=1&language=en&format=json";
+    url += "&count=1&language=";
+    url += useChineseDisplay ? "zh" : "en";
+    url += "&format=json";
 
     Serial.println("Geocoding city: " + cityName);
 
@@ -178,6 +192,9 @@ bool geocodeCity(String cityName, float &latitude, float &longitude) {
                 longitude = doc["results"][0]["longitude"];
                 String foundCity = doc["results"][0]["name"].as<String>();
                 String country = doc["results"][0]["country"].as<String>();
+                if (resolvedName != nullptr && foundCity.length() > 0) {
+                    *resolvedName = foundCity;
+                }
 
                 Serial.printf("Found: %s, %s at %.4f, %.4f\n",
                              foundCity.c_str(), country.c_str(), latitude, longitude);

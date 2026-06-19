@@ -370,9 +370,30 @@ void loadPreferences(float &latitude, float &longitude, String &cityName) {
     latitude = latStr.toFloat();
     longitude = lonStr.toFloat();
 
+    if (useChineseDisplay) {
+        String localizedCityName = "";
+        float lookupLat = latitude;
+        float lookupLon = longitude;
+        if (geocodeCity(cityName, lookupLat, lookupLon, &localizedCityName) && localizedCityName.length() > 0) {
+            cityName = localizedCityName;
+            if (latitude == COORD_NOT_SET || longitude == COORD_NOT_SET) {
+                latitude = lookupLat;
+                longitude = lookupLon;
+                preferences.begin("weather", false);
+                preferences.putString("latitude", String(latitude, 4));
+                preferences.putString("longitude", String(longitude, 4));
+                preferences.end();
+            }
+        }
+    }
+
     if (latitude == COORD_NOT_SET || longitude == COORD_NOT_SET) {
         Serial.println("No coordinates found, geocoding city: " + cityName);
-        if (geocodeCity(cityName, latitude, longitude)) {
+        String resolvedCityName = "";
+        if (geocodeCity(cityName, latitude, longitude, &resolvedCityName)) {
+            if (resolvedCityName.length() > 0) {
+                cityName = resolvedCityName;
+            }
             preferences.begin("weather", false);
             preferences.putString("latitude", String(latitude, 4));
             preferences.putString("longitude", String(longitude, 4));

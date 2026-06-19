@@ -21,6 +21,7 @@ struct WeatherData {
 
     String sunriseTime;
     String sunsetTime;
+    String localDateYmd;
 
     struct {
         float temp;
@@ -40,6 +41,7 @@ struct WeatherData {
 
     float todayMinTemp;
     float todayMaxTemp;
+    int utcOffsetSeconds;
 };
 
 extern WeatherData currentWeather;
