@@ -29,6 +29,17 @@ const char* labelText(const char* english, const char* chinese) {
     return useChineseDisplay ? chinese : english;
 }
 
+String fitText(String text, int maxWidth);
+
+void useCompactDisplayFont(int englishSize = 2) {
+    if (useChineseDisplay) {
+        canvas.setFont(&fonts::efontCN_16);
+        canvas.setTextSize(1);
+    } else {
+        useDefaultFont(englishSize);
+    }
+}
+
 String getDisplayWeatherConditionText(int weatherCode) {
     if (!useChineseDisplay) {
         return getWeatherConditionText(weatherCode);
@@ -70,6 +81,28 @@ void drawIcon(int x, int y, const uint8_t *icon, int dx, int dy, bool highContra
     for (int yi = 0; yi < dy; yi++) {
         for (int xi = 0; xi < dx; xi++) {
             uint16_t pixel = icon16[yi * dx + xi];
+            int grayscale = 15 - (pixel / ICON_GRAYSCALE_DIVISOR);
+
+            if (highContrast) {
+                if (grayscale > 0) {
+                    canvas.drawPixel(x + xi, y + yi, TFT_BLACK);
+                }
+            } else {
+                uint16_t color = 0xFFFF - (grayscale * ICON_COLOR_MULTIPLIER);
+                canvas.drawPixel(x + xi, y + yi, color);
+            }
+        }
+    }
+}
+
+void drawIconScaled(int x, int y, const uint8_t *icon, int sourceSize, int targetSize, bool highContrast) {
+    const uint16_t *icon16 = (const uint16_t *)icon;
+
+    for (int yi = 0; yi < targetSize; yi++) {
+        int sourceY = yi * sourceSize / targetSize;
+        for (int xi = 0; xi < targetSize; xi++) {
+            int sourceX = xi * sourceSize / targetSize;
+            uint16_t pixel = icon16[sourceY * sourceSize + sourceX];
             int grayscale = 15 - (pixel / ICON_GRAYSCALE_DIVISOR);
 
             if (highContrast) {
@@ -199,14 +232,15 @@ void drawHourlyForecast(int x, int y, int dx, int dy, int index) {
     canvas.setTextDatum(TL_DATUM);
 
     bool isDay = isDaytime(forecastHour);
-    int iconX = x + dx / 2 - 32;
-    int iconY = y + 32;
+    const int iconSize = 48;
+    int iconX = x + dx / 2 - iconSize / 2;
+    int iconY = y + 34;
     const uint8_t* weatherIcon = getWeatherIcon(currentWeather.hourly[index].weatherCode, isDay);
-    drawIcon(iconX, iconY, weatherIcon, WEATHER_ICON_SIZE, WEATHER_ICON_SIZE, true);
+    drawIconScaled(iconX, iconY, weatherIcon, WEATHER_ICON_SIZE, iconSize, true);
 
     canvas.setTextDatum(TC_DATUM);
-    useDefaultFont(3);
-    canvas.drawString(formatTemp(currentWeather.hourly[index].temp), x + dx / 2, y + 98);
+    useDefaultFont(2);
+    canvas.drawString(formatTemp(currentWeather.hourly[index].temp), x + dx / 2, y + 92);
 
     canvas.setTextDatum(TL_DATUM);
 }
@@ -447,18 +481,19 @@ String getForecastDateLabel(int dayOffset) {
 
 void drawDailyForecast(int x, int y, int dx, int dy, int forecastIndex) {
     canvas.setTextDatum(TC_DATUM);
-    useDisplayFont(2);
-    canvas.drawString(getForecastDateLabel(forecastIndex), x + dx / 2, y + 8);
+    int textW = dx - 14;
+    useCompactDisplayFont(2);
+    canvas.drawString(fitText(getForecastDateLabel(forecastIndex), textW), x + dx / 2, y + 8);
 
     const uint8_t* weatherIcon = getWeatherIcon(currentWeather.forecastWeatherCode[forecastIndex], true);
-    drawIcon(x + dx / 2 - 32, y + 32, weatherIcon, WEATHER_ICON_SIZE, WEATHER_ICON_SIZE, true);
+    drawIconScaled(x + dx / 2 - 26, y + 34, weatherIcon, WEATHER_ICON_SIZE, 52, true);
 
-    useDisplayFont(2);
-    canvas.drawString(formatTemp(currentWeather.forecastMinTemp[forecastIndex]) + " / " +
-                      formatTemp(currentWeather.forecastMaxTemp[forecastIndex]),
-                      x + dx / 2, y + 102);
-    canvas.drawString(String(labelText("Rain ", "降雨 ")) + String((int)currentWeather.forecastRain[forecastIndex]) + "%",
-                      x + dx / 2, y + 126);
+    useCompactDisplayFont(2);
+    String tempText = formatTemp(currentWeather.forecastMinTemp[forecastIndex]) + "/" +
+                      formatTemp(currentWeather.forecastMaxTemp[forecastIndex]);
+    canvas.drawString(fitText(tempText, textW), x + dx / 2, y + 98);
+    canvas.drawString(fitText(String(labelText("Rain ", "降雨 ")) + String((int)currentWeather.forecastRain[forecastIndex]) + "%", textW),
+                      x + dx / 2, y + 122);
     canvas.setTextDatum(TL_DATUM);
 }
 

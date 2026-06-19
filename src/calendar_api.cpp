@@ -77,13 +77,97 @@ static String cleanSummary(String summary) {
     return summary;
 }
 
+static long daysFromCivil(int year, unsigned month, unsigned day) {
+    year -= month <= 2;
+    const int era = (year >= 0 ? year : year - 399) / 400;
+    const unsigned yoe = static_cast<unsigned>(year - era * 400);
+    const unsigned doy = (153 * (month + (month > 2 ? -3 : 9)) + 2) / 5 + day - 1;
+    const unsigned doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    return era * 146097L + static_cast<long>(doe) - 719468L;
+}
+
+static void civilFromDays(long z, int &year, unsigned &month, unsigned &day) {
+    z += 719468L;
+    const long era = (z >= 0 ? z : z - 146096L) / 146097L;
+    const unsigned doe = static_cast<unsigned>(z - era * 146097L);
+    const unsigned yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    year = static_cast<int>(yoe) + era * 400;
+    const unsigned doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    const unsigned mp = (5 * doy + 2) / 153;
+    day = doy - (153 * mp + 2) / 5 + 1;
+    month = mp + (mp < 10 ? 3 : -9);
+    year += month <= 2;
+}
+
+static String twoDigits(int value) {
+    return value < 10 ? "0" + String(value) : String(value);
+}
+
+static bool parseIcsDateTime(String value, String &localDate, String &localTime, bool &dateOnly) {
+    value.trim();
+    if (value.length() < 8) {
+        return false;
+    }
+
+    dateOnly = value.indexOf('T') < 0;
+    int year = value.substring(0, 4).toInt();
+    unsigned month = value.substring(4, 6).toInt();
+    unsigned day = value.substring(6, 8).toInt();
+
+    if (year < 1970 || month < 1 || month > 12 || day < 1 || day > 31) {
+        return false;
+    }
+
+    localDate = value.substring(0, 8);
+    localTime = "";
+
+    if (dateOnly) {
+        return true;
+    }
+
+    int timePos = value.indexOf('T');
+    if (timePos < 0 || timePos + 4 >= value.length()) {
+        return false;
+    }
+
+    int hour = value.substring(timePos + 1, timePos + 3).toInt();
+    int minute = value.substring(timePos + 3, timePos + 5).toInt();
+    int second = (timePos + 6 < value.length()) ? value.substring(timePos + 5, timePos + 7).toInt() : 0;
+
+    if (value.endsWith("Z")) {
+        long dayNumber = daysFromCivil(year, month, day);
+        long secondsOfDay = hour * 3600L + minute * 60L + second + currentWeather.utcOffsetSeconds;
+        while (secondsOfDay < 0) {
+            secondsOfDay += 86400L;
+            dayNumber--;
+        }
+        while (secondsOfDay >= 86400L) {
+            secondsOfDay -= 86400L;
+            dayNumber++;
+        }
+
+        int localYear;
+        unsigned localMonth;
+        unsigned localDay;
+        civilFromDays(dayNumber, localYear, localMonth, localDay);
+        hour = secondsOfDay / 3600L;
+        minute = (secondsOfDay % 3600L) / 60L;
+        localDate = String(localYear) + twoDigits(localMonth) + twoDigits(localDay);
+    }
+
+    localTime = twoDigits(hour) + ":" + twoDigits(minute);
+    return true;
+}
+
 static String eventTimeLabel(const String &dtstart) {
-    int timePos = dtstart.indexOf('T');
-    if (timePos < 0 || timePos + 4 >= dtstart.length()) {
+    String localDate;
+    String localTime;
+    bool dateOnly = false;
+    if (!parseIcsDateTime(dtstart, localDate, localTime, dateOnly) || dateOnly) {
         return "All day";
     }
 
-    return dtstart.substring(timePos + 1, timePos + 3) + ":" + dtstart.substring(timePos + 3, timePos + 5);
+    return localTime;
 }
 
 static int dateToEpochDay(const String &date) {
@@ -168,6 +252,43 @@ static bool rruleIncludesToday(const String &rrule, const String &dtstart, const
     return false;
 }
 
+static bool eventIncludesToday(const String &dtstart, const String &dtend, const String &rrule, const String &today) {
+    String startDate;
+    String startTime;
+    bool startDateOnly = false;
+    if (!parseIcsDateTime(dtstart, startDate, startTime, startDateOnly)) {
+        return false;
+    }
+
+    if (rruleIncludesToday(rrule, startDate, today)) {
+        return true;
+    }
+
+    if (dtend.length() == 0) {
+        return startDate == today;
+    }
+
+    String endDate;
+    String endTime;
+    bool endDateOnly = false;
+    if (!parseIcsDateTime(dtend, endDate, endTime, endDateOnly)) {
+        return startDate == today;
+    }
+
+    int todayDay = dateToEpochDay(today);
+    int startDay = dateToEpochDay(startDate);
+    int endDay = dateToEpochDay(endDate);
+    if (todayDay < 0 || startDay < 0 || endDay < 0) {
+        return startDate == today;
+    }
+
+    if (endDateOnly) {
+        return todayDay >= startDay && todayDay < endDay;
+    }
+
+    return todayDay >= startDay && todayDay <= endDay;
+}
+
 static void clearCalendarEvents() {
     calendarFetchOk = true;
     calendarEventCount = 0;
@@ -202,6 +323,7 @@ bool fetchCalendarData(const String &icsUrl) {
 
     String payload = http.getString();
     http.end();
+    Serial.printf("Calendar ICS payload bytes: %d\n", payload.length());
 
     String today = todayString();
     if (today.length() == 0) {
@@ -212,6 +334,7 @@ bool fetchCalendarData(const String &icsUrl) {
 
     bool inEvent = false;
     String dtstart = "";
+    String dtend = "";
     String summary = "";
     String rrule = "";
 
@@ -222,13 +345,14 @@ bool fetchCalendarData(const String &icsUrl) {
         if (line == "BEGIN:VEVENT") {
             inEvent = true;
             dtstart = "";
+            dtend = "";
             summary = "";
             rrule = "";
             continue;
         }
 
         if (line == "END:VEVENT") {
-            bool isToday = dtstart.startsWith(today) || rruleIncludesToday(rrule, dtstart, today);
+            bool isToday = eventIncludesToday(dtstart, dtend, rrule, today);
             if (inEvent && isToday && summary.length() > 0) {
                 calendarEvents[calendarEventCount++] = eventTimeLabel(dtstart) + " " + cleanSummary(summary);
             }
@@ -242,6 +366,8 @@ bool fetchCalendarData(const String &icsUrl) {
 
         if (line.startsWith("DTSTART")) {
             dtstart = valueAfterColon(line);
+        } else if (line.startsWith("DTEND")) {
+            dtend = valueAfterColon(line);
         } else if (line.startsWith("SUMMARY")) {
             summary = valueAfterColon(line);
         } else if (line.startsWith("RRULE")) {
