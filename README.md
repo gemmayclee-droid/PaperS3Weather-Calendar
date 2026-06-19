@@ -90,7 +90,7 @@ The calendar panel reads an iCal/ICS feed. In Google Calendar:
 4. Copy the public or secret iCal address.
 5. Paste that URL into the setup portal's **Google Calendar ICS URL** field.
 
-The device accepts `https://...` and converts `webcal://...` URLs to HTTPS automatically.
+The device accepts `https://...` and converts `webcal://...` URLs to HTTPS automatically. Google Calendar redirects are followed during sync.
 
 Calendar matching uses the weather location's local date from Open-Meteo. The parser displays up to three events whose `DTSTART` is today and supports simple daily/weekly `RRULE` recurring events. Long multi-day events may need future parser improvements.
 

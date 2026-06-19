@@ -18,7 +18,7 @@ void useDefaultFont(int size = 2) {
 
 void useDisplayFont(int size = 2) {
     if (useChineseDisplay) {
-        canvas.setFont(&fonts::efontCN_16);
+        canvas.setFont(&fonts::efontCN_24);
         canvas.setTextSize(1);
     } else {
         useDefaultFont(size);
@@ -631,7 +631,7 @@ void displayWeather() {
         useDefaultFont(1);
         canvas.drawString("[EN]", 20, SCREEN_HEIGHT - 20);
     } else {
-        canvas.setFont(&fonts::efontCN_16);
+        canvas.setFont(&fonts::efontCN_24);
         canvas.setTextSize(1);
         canvas.drawString("[中文]", 20, SCREEN_HEIGHT - 20);
     }

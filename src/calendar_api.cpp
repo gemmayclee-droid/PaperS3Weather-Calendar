@@ -189,6 +189,8 @@ bool fetchCalendarData(const String &icsUrl) {
     HTTPClient http;
     http.begin(url);
     http.setTimeout(HTTP_TIMEOUT_MS);
+    http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
+    http.setUserAgent(APP_NAME);
 
     int httpCode = http.GET();
     if (httpCode != HTTP_CODE_OK) {
