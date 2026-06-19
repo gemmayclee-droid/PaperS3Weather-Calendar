@@ -151,7 +151,7 @@ void startConfigPortal() {
                 html += " (" + currentLat + ", " + currentLon + ")";
             }
             html += "<br>Temperature: " + String(currentUnit == "C" ? "Celsius" : "Fahrenheit");
-            html += "<br>Display Language: " + String(currentDisplayLang == "zh" ? "中文" : "English");
+            html += "<br>Display Language: " + String(currentDisplayLang == "zh" ? "繁體中文" : "English");
             html += "<br>Updates: " + String(currentDayInterval) + " min (day), " + String(currentNightInterval) + " min (night)";
             html += "<br>Calendar: " + String(currentCalendarIcs.length() > 0 ? "ON" : "OFF");
             html += "<br>Night Mode: " + String(currentNightMode ? "ON" : "OFF");
@@ -207,9 +207,9 @@ void startConfigPortal() {
         html += "<label>Display Language:</label>";
         html += "<select name='display_lang'>";
         html += "<option value='en'" + String(currentDisplayLang != "zh" ? " selected" : "") + ">English</option>";
-        html += "<option value='zh'" + String(currentDisplayLang == "zh" ? " selected" : "") + ">中文</option>";
+        html += "<option value='zh'" + String(currentDisplayLang == "zh" ? " selected" : "") + ">繁體中文</option>";
         html += "</select>";
-        html += "<div class='help'>English is the default. Chinese display uses the built-in M5GFX Chinese font.</div>";
+        html += "<div class='help'>English is the default. Traditional Chinese display uses the built-in M5GFX Chinese font.</div>";
         html += "</div>";
 
         // Update Schedule

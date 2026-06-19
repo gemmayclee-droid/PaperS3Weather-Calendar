@@ -1,10 +1,10 @@
 # Changelog - M5PaperS3 Weather Dashboard
 
-## Unreleased - Chinese Display Language Branch
+## Unreleased
 
 ### Added
-- Added a display language setting in the configuration portal with English as the default and Chinese as an optional main-screen language.
-- Added Chinese labels for the main weather dashboard, including current weather, 8-hour forecast, 3-day forecast, rain probability, and Google Calendar panel labels.
+- Added a display language setting in the configuration portal with English as the default and Traditional Chinese as an optional main-screen language.
+- Added Traditional Chinese labels for the main weather dashboard, including current weather, 8-hour forecast, 3-day forecast, rain probability, and Google Calendar panel labels.
 - Added Google Calendar ICS setup documentation to the README.
 
 ### Changed
@@ -12,7 +12,7 @@
 - Documented the current single-screen weather and calendar layout.
 
 ### Notes
-- Chinese rendering uses the built-in M5GFX Chinese font. Traditional Chinese typography may require adding a dedicated external font asset.
+- Traditional Chinese rendering uses the built-in M5GFX Chinese font.
 
 ---
 
