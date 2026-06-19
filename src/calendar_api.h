@@ -10,5 +10,6 @@ bool fetchCalendarData(const String &icsUrl);
 extern String calendarEvents[MAX_CALENDAR_EVENTS];
 extern int calendarEventCount;
 extern bool calendarFetchOk;
+extern String calendarStatusMessage;
 
 #endif // CALENDAR_API_H

@@ -514,6 +514,9 @@ void drawCalendarEvents(int x, int y, int dx, int dy) {
 
     if (!calendarFetchOk) {
         canvas.drawString(labelText("Calendar sync failed", "日历同步失败"), x + 14, y + 20);
+        if (calendarStatusMessage.length() > 0) {
+            canvas.drawString(fitText(calendarStatusMessage, dx - 28), x + 14, y + 52);
+        }
         return;
     }
 

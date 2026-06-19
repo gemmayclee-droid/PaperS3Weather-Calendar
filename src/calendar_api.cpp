@@ -2,11 +2,13 @@
 #include "constants.h"
 #include "utils.h"
 #include <HTTPClient.h>
+#include <WiFiClientSecure.h>
 #include <time.h>
 
 String calendarEvents[MAX_CALENDAR_EVENTS];
 int calendarEventCount = 0;
 bool calendarFetchOk = true;
+String calendarStatusMessage = "";
 
 extern WeatherData currentWeather;
 
@@ -291,6 +293,7 @@ static bool eventIncludesToday(const String &dtstart, const String &dtend, const
 
 static void clearCalendarEvents() {
     calendarFetchOk = true;
+    calendarStatusMessage = "";
     calendarEventCount = 0;
     for (int i = 0; i < MAX_CALENDAR_EVENTS; i++) {
         calendarEvents[i] = "";
@@ -304,31 +307,62 @@ bool fetchCalendarData(const String &icsUrl) {
     if (url.length() == 0) {
         Serial.println("No Google Calendar ICS URL configured");
         calendarFetchOk = false;
+        calendarStatusMessage = "No ICS URL";
         return true;
     }
 
     HTTPClient http;
-    http.begin(url);
+    WiFiClientSecure secureClient;
+    WiFiClient plainClient;
+    bool isHttps = url.startsWith("https://");
+
+    if (isHttps) {
+        secureClient.setInsecure();
+        if (!http.begin(secureClient, url)) {
+            Serial.println("Calendar HTTPS begin failed");
+            calendarFetchOk = false;
+            calendarStatusMessage = "HTTPS begin failed";
+            return false;
+        }
+    } else if (!http.begin(plainClient, url)) {
+        Serial.println("Calendar HTTP begin failed");
+        calendarFetchOk = false;
+        calendarStatusMessage = "HTTP begin failed";
+        return false;
+    }
+
     http.setTimeout(HTTP_TIMEOUT_MS);
     http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
     http.setUserAgent(APP_NAME);
 
     int httpCode = http.GET();
     if (httpCode != HTTP_CODE_OK) {
-        Serial.printf("Calendar HTTP error code: %d\n", httpCode);
+        String errorText = http.errorToString(httpCode);
+        Serial.printf("Calendar HTTP error code: %d (%s)\n", httpCode, errorText.c_str());
         http.end();
         calendarFetchOk = false;
+        calendarStatusMessage = "HTTP " + String(httpCode);
+        if (errorText.length() > 0) {
+            calendarStatusMessage += " " + errorText;
+        }
         return false;
     }
 
     String payload = http.getString();
     http.end();
     Serial.printf("Calendar ICS payload bytes: %d\n", payload.length());
+    if (payload.length() == 0) {
+        Serial.println("Calendar ICS payload is empty");
+        calendarFetchOk = false;
+        calendarStatusMessage = "Empty ICS";
+        return false;
+    }
 
     String today = todayString();
     if (today.length() == 0) {
         Serial.println("Calendar skipped: local date unavailable");
         calendarFetchOk = false;
+        calendarStatusMessage = "No local date";
         return false;
     }
 
@@ -376,5 +410,6 @@ bool fetchCalendarData(const String &icsUrl) {
     }
 
     Serial.printf("Calendar events today: %d\n", calendarEventCount);
+    calendarStatusMessage = calendarEventCount == 0 ? "No events today" : "OK";
     return true;
 }
