@@ -38,6 +38,8 @@ const char* labelText(const char* english, const char* chinese) {
 }
 
 String fitText(String text, int maxWidth);
+String fitTextMixedChinese(String text, int maxWidth);
+void drawStringMixedChinese(String text, int x, int y);
 
 void useCompactDisplayFont(int englishSize = 2) {
     if (useChineseDisplay) {
@@ -519,6 +521,132 @@ String fitText(String text, int maxWidth) {
     return text + "...";
 }
 
+const lgfx::IFont* primaryChineseFont() {
+    return useTraditionalChinese ? &fonts::efontTW_24 : &fonts::efontCN_24;
+}
+
+const lgfx::IFont* fallbackChineseFont() {
+    return useTraditionalChinese ? &fonts::efontCN_24 : &fonts::efontTW_24;
+}
+
+bool readNextUtf8Glyph(const String& text, int& index, String& glyph, uint32_t& codepoint) {
+    if (index >= text.length()) {
+        return false;
+    }
+
+    int start = index;
+    uint8_t first = static_cast<uint8_t>(text[index++]);
+
+    if ((first & 0x80) == 0) {
+        codepoint = first;
+    } else if ((first & 0xE0) == 0xC0 && index < text.length()) {
+        uint8_t b1 = static_cast<uint8_t>(text[index++]);
+        codepoint = ((first & 0x1F) << 6) | (b1 & 0x3F);
+    } else if ((first & 0xF0) == 0xE0 && index + 1 < text.length()) {
+        uint8_t b1 = static_cast<uint8_t>(text[index++]);
+        uint8_t b2 = static_cast<uint8_t>(text[index++]);
+        codepoint = ((first & 0x0F) << 12) | ((b1 & 0x3F) << 6) | (b2 & 0x3F);
+    } else if ((first & 0xF8) == 0xF0 && index + 2 < text.length()) {
+        uint8_t b1 = static_cast<uint8_t>(text[index++]);
+        uint8_t b2 = static_cast<uint8_t>(text[index++]);
+        uint8_t b3 = static_cast<uint8_t>(text[index++]);
+        codepoint = ((first & 0x07) << 18) | ((b1 & 0x3F) << 12) |
+                    ((b2 & 0x3F) << 6) | (b3 & 0x3F);
+    } else {
+        codepoint = first;
+    }
+
+    glyph = text.substring(start, index);
+    return true;
+}
+
+bool fontHasGlyph(const lgfx::IFont* font, uint32_t codepoint) {
+    if (codepoint > 0xFFFF) {
+        return false;
+    }
+
+    lgfx::FontMetrics metrics;
+    return font->updateFontMetric(&metrics, static_cast<uint16_t>(codepoint));
+}
+
+const lgfx::IFont* fontForGlyph(uint32_t codepoint) {
+    const lgfx::IFont* primary = primaryChineseFont();
+    if (fontHasGlyph(primary, codepoint)) {
+        return primary;
+    }
+
+    const lgfx::IFont* fallback = fallbackChineseFont();
+    if (fontHasGlyph(fallback, codepoint)) {
+        return fallback;
+    }
+
+    return primary;
+}
+
+int textWidthMixedChinese(String text) {
+    if (!useChineseDisplay) {
+        return canvas.textWidth(text);
+    }
+
+    int width = 0;
+    int index = 0;
+    String glyph;
+    uint32_t codepoint;
+    while (readNextUtf8Glyph(text, index, glyph, codepoint)) {
+        canvas.setFont(fontForGlyph(codepoint));
+        canvas.setTextSize(1);
+        width += canvas.textWidth(glyph);
+    }
+    useDisplayFont(2);
+    return width;
+}
+
+void removeLastUtf8Glyph(String& text) {
+    if (text.length() == 0) {
+        return;
+    }
+
+    int index = text.length() - 1;
+    while (index > 0 && (static_cast<uint8_t>(text[index]) & 0xC0) == 0x80) {
+        index--;
+    }
+    text.remove(index);
+}
+
+String fitTextMixedChinese(String text, int maxWidth) {
+    if (!useChineseDisplay) {
+        return fitText(text, maxWidth);
+    }
+
+    if (textWidthMixedChinese(text) <= maxWidth) {
+        return text;
+    }
+
+    while (text.length() > 0 && textWidthMixedChinese(text + "...") > maxWidth) {
+        removeLastUtf8Glyph(text);
+    }
+    return text + "...";
+}
+
+void drawStringMixedChinese(String text, int x, int y) {
+    if (!useChineseDisplay) {
+        canvas.drawString(text, x, y);
+        return;
+    }
+
+    int cursorX = x;
+    int index = 0;
+    String glyph;
+    uint32_t codepoint;
+    while (readNextUtf8Glyph(text, index, glyph, codepoint)) {
+        canvas.setFont(fontForGlyph(codepoint));
+        canvas.setTextSize(1);
+        canvas.drawString(glyph, cursorX, y);
+        cursorX += canvas.textWidth(glyph);
+    }
+    useDisplayFont(2);
+}
+
 void drawCalendarEvents(int x, int y, int dx, int dy) {
     canvas.setTextDatum(TL_DATUM);
     useDisplayFont(2);
@@ -539,7 +667,7 @@ void drawCalendarEvents(int x, int y, int dx, int dy) {
     int lineY = y + 14;
     int maxTextWidth = dx - 28;
     for (int i = 0; i < calendarEventCount; i++) {
-        canvas.drawString(fitText(calendarEvents[i], maxTextWidth), x + 14, lineY);
+        drawStringMixedChinese(fitTextMixedChinese(calendarEvents[i], maxTextWidth), x + 14, lineY);
         lineY += 32;
     }
 }
