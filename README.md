@@ -3,7 +3,7 @@
 ![PaperS3Weather-Calendar](M5PaperS3_Weather_Calendar_EN.png)
 ![PaperS3Weather-Calendar](M5PaperS3_Weather_Calendar_CN.png)
 
-PaperS3Weather-Calendar is a weather and Google Calendar dashboard for the M5Paper S3 e-ink display. It shows current weather, the next 8 hours, the next 3 days, and today's calendar events on one screen, with English or Traditional Chinese display labels selected from the setup portal.
+PaperS3Weather-Calendar is a weather and Google Calendar dashboard for the M5Paper S3 e-ink display. It shows current weather, the next 8 hours, the next 3 days, and today's calendar events on one screen, with English, Simplified Chinese, or Traditional Chinese display labels selected from the setup portal.
 
 Firmware is built automatically with GitHub Actions. Download the latest `firmware.bin` from the project's [GitHub Releases](https://github.com/gemmayclee-droid/PaperS3Weather-Calendar/releases).
 
@@ -18,7 +18,7 @@ Firmware is built automatically with GitHub Actions. Download the latest `firmwa
 - **Next 8 hours**: Hourly time, weather icon, and temperature, starting two hours from the current local weather time.
 - **Next 3 days**: Date, weather icon, high/low temperature, and rain probability.
 - **Google Calendar**: Shows today's events from a configured Google Calendar ICS URL.
-- **Display language**: English by default, with optional Traditional Chinese labels and localized city names from the setup portal or the main-screen language button.
+- **Display language**: English by default, with optional Simplified Chinese or Traditional Chinese labels and localized city names from the setup portal or the main-screen language button.
 - **Web setup portal**: Configure WiFi, location, calendar ICS URL, temperature unit, language, refresh intervals, and night mode.
 - **Automatic setup prompt**: Opens setup when WiFi is missing, WiFi fails, or the calendar ICS URL has not been configured.
 - **Power saving**: Deep sleep between updates, with separate day/night refresh intervals.
@@ -76,7 +76,7 @@ After first boot, the device starts the setup portal if required.
    - **City Name**: Used for automatic coordinate lookup.
    - **Google Calendar ICS URL**: Required for today's events.
    - **Temperature Unit**: Fahrenheit or Celsius.
-   - **Display Language**: English or Traditional Chinese.
+   - **Display Language**: English, Simplified Chinese, or Traditional Chinese.
    - **Refresh / Night Mode**: Optional power-saving settings.
 5. Click **Save & Restart**.
 
@@ -90,6 +90,8 @@ The calendar panel reads an iCal/ICS feed. In Google Calendar:
 4. Copy **Secret address in iCal format** or **Public address in iCal format**.
 5. Paste that URL into the setup portal's **Google Calendar ICS URL** field.
 
+For private calendars, use **Secret address in iCal format**. A normal browser URL, share page URL, or embed URL will not work for private calendars and usually appears as `HTTP 404` on the device.
+
 The URL should contain `/calendar/ical/` and end with `/basic.ics`. The device accepts `https://...`, converts `webcal://...` URLs to HTTPS automatically, and can convert common Google `embed?src=` / `?cid=` links to a public ICS URL when the calendar is public. Google Calendar redirects are followed during sync. `HTTP 404` means Google could not find an accessible ICS feed at the configured URL; use the secret iCal address for private calendars.
 
 Calendar matching uses the weather location's local date from Open-Meteo. The parser displays up to three events whose `DTSTART` is today and supports simple daily/weekly `RRULE` recurring events. Long multi-day events may need future parser improvements.
@@ -99,11 +101,12 @@ Calendar matching uses the weather location's local date from Open-Meteo. The pa
 The setup portal includes a **Display Language** option:
 
 - **English**: Default.
+- **Simplified Chinese**: Main dashboard labels use the built-in M5GFX Chinese font.
 - **Traditional Chinese**: Main dashboard labels use the built-in M5GFX Chinese font.
 
-The main screen also has a language toggle in the bottom-left corner. After a manual reset or power-on, tap `[繁中]` to switch from English to Traditional Chinese, or `[EN]` to switch back to English. The setting is saved immediately.
+The main screen also has a language toggle in the bottom-left corner. After a manual reset or power-on, tap `[繁中]`, `[简中]`, or `[EN]` to cycle through English, Traditional Chinese, and Simplified Chinese. The setting is saved immediately.
 
-Traditional Chinese labels use the built-in M5GFX Chinese font.
+Simplified and Traditional Chinese labels use the built-in M5GFX Chinese font.
 
 ## Developer Workflow
 

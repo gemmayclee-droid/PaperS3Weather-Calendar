@@ -3,16 +3,16 @@
 ## Unreleased
 
 ### Added
-- Added a display language setting in the configuration portal with English as the default and Traditional Chinese as an optional main-screen language.
-- Added Traditional Chinese labels for the main weather dashboard, including current weather, 8-hour forecast, 3-day forecast, rain probability, and Google Calendar panel labels.
-- Added Google Calendar ICS setup documentation to the README.
+- Added a display language setting in the configuration portal with English as the default and Simplified Chinese or Traditional Chinese as optional main-screen languages.
+- Added Simplified Chinese and Traditional Chinese labels for the main weather dashboard, including current weather, 8-hour forecast, 3-day forecast, rain probability, and Google Calendar panel labels.
+- Added Google Calendar ICS setup documentation to the README, including private calendar Secret iCal address guidance.
 
 ### Changed
 - Updated README branding and setup instructions for `PaperS3Weather-Calendar`.
 - Documented the current single-screen weather and calendar layout.
 
 ### Notes
-- Traditional Chinese rendering uses the built-in M5GFX Chinese font.
+- Simplified and Traditional Chinese rendering use the built-in M5GFX Chinese font.
 
 ---
 

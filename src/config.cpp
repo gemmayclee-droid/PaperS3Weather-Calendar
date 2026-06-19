@@ -10,6 +10,7 @@ extern Preferences preferences;
 extern bool useCelsius;
 extern bool nightModeSleep;
 extern bool useChineseDisplay;
+extern bool useTraditionalChinese;
 extern String cityName;
 
 static String htmlEscape(String value) {
@@ -18,6 +19,35 @@ static String htmlEscape(String value) {
     value.replace("<", "&lt;");
     value.replace(">", "&gt;");
     return value;
+}
+
+static bool isTraditionalDisplayLang(const String &displayLang) {
+    return displayLang == "zh" || displayLang == "zh_tw";
+}
+
+static bool isSimplifiedDisplayLang(const String &displayLang) {
+    return displayLang == "zh_cn";
+}
+
+static String displayLanguageName(const String &displayLang) {
+    if (isSimplifiedDisplayLang(displayLang)) {
+        return "简体中文";
+    }
+    if (isTraditionalDisplayLang(displayLang)) {
+        return "繁體中文";
+    }
+    return "English";
+}
+
+static String normalizeDisplayLanguage(String displayLang) {
+    displayLang.trim();
+    if (displayLang == "zh_cn") {
+        return "zh_cn";
+    }
+    if (displayLang == "zh" || displayLang == "zh_tw") {
+        return "zh";
+    }
+    return "en";
 }
 
 void setupWiFi() {
@@ -151,7 +181,7 @@ void startConfigPortal() {
                 html += " (" + currentLat + ", " + currentLon + ")";
             }
             html += "<br>Temperature: " + String(currentUnit == "C" ? "Celsius" : "Fahrenheit");
-            html += "<br>Display Language: " + String(currentDisplayLang == "zh" ? "繁體中文" : "English");
+            html += "<br>Display Language: " + displayLanguageName(currentDisplayLang);
             html += "<br>Updates: " + String(currentDayInterval) + " min (day), " + String(currentNightInterval) + " min (night)";
             html += "<br>Calendar: " + String(currentCalendarIcs.length() > 0 ? "ON" : "OFF");
             html += "<br>Night Mode: " + String(currentNightMode ? "ON" : "OFF");
@@ -193,7 +223,7 @@ void startConfigPortal() {
         html += "<h3>Google Calendar</h3>";
         html += "<label>ICS URL:</label>";
         html += "<input name='calendar_ics' value=\"" + htmlEscape(currentCalendarIcs) + "\" placeholder='https://calendar.google.com/calendar/ical/.../basic.ics' required>";
-        html += "<div class='help'>Paste the Google Calendar iCal/ICS address from Settings > Integrate calendar. It should contain /calendar/ical/ and end with /basic.ics. HTTP 404 means the URL is not a valid accessible ICS feed.</div>";
+        html += "<div class='help'>For private Google calendars, paste the Secret address in iCal format from Settings > Integrate calendar. It should contain /calendar/ical/ and end with /basic.ics. HTTP 404 means the URL is not a valid accessible ICS feed.</div>";
         html += "</div>";
 
         // Display Preferences
@@ -206,10 +236,11 @@ void startConfigPortal() {
         html += "</select>";
         html += "<label>Display Language:</label>";
         html += "<select name='display_lang'>";
-        html += "<option value='en'" + String(currentDisplayLang != "zh" ? " selected" : "") + ">English</option>";
-        html += "<option value='zh'" + String(currentDisplayLang == "zh" ? " selected" : "") + ">繁體中文</option>";
+        html += "<option value='en'" + String(!isTraditionalDisplayLang(currentDisplayLang) && !isSimplifiedDisplayLang(currentDisplayLang) ? " selected" : "") + ">English</option>";
+        html += "<option value='zh_cn'" + String(isSimplifiedDisplayLang(currentDisplayLang) ? " selected" : "") + ">简体中文</option>";
+        html += "<option value='zh'" + String(isTraditionalDisplayLang(currentDisplayLang) ? " selected" : "") + ">繁體中文</option>";
         html += "</select>";
-        html += "<div class='help'>English is the default. Traditional Chinese display uses the built-in M5GFX Chinese font.</div>";
+        html += "<div class='help'>English is the default. Simplified and Traditional Chinese display use the built-in M5GFX Chinese font.</div>";
         html += "</div>";
 
         // Update Schedule
@@ -314,7 +345,7 @@ void startConfigPortal() {
         preferences.putString("password", password);
         preferences.putString("city", city);
         preferences.putString("tempunit", tempUnit);
-        preferences.putString("display_lang", displayLang == "zh" ? "zh" : "en");
+        preferences.putString("display_lang", normalizeDisplayLanguage(displayLang));
         preferences.putString("calendar_ics", calendarIcs);
         preferences.putBool("nightmode", nightMode);
         preferences.putInt("day_interval", dayInterval);
@@ -363,7 +394,9 @@ void loadPreferences(float &latitude, float &longitude, String &cityName) {
     String tempUnit = preferences.getString("tempunit", "F");
     String displayLang = preferences.getString("display_lang", "en");
     useCelsius = (tempUnit == "C");
-    useChineseDisplay = (displayLang == "zh");
+    displayLang = normalizeDisplayLanguage(displayLang);
+    useChineseDisplay = (displayLang == "zh" || displayLang == "zh_cn");
+    useTraditionalChinese = (displayLang != "zh_cn");
     nightModeSleep = preferences.getBool("nightmode", true);
     preferences.end();
 
@@ -408,5 +441,6 @@ void loadPreferences(float &latitude, float &longitude, String &cityName) {
 
     Serial.printf("Using coordinates: %.4f, %.4f (%s)\n", latitude, longitude, cityName.c_str());
     Serial.printf("Temperature unit: %s\n", useCelsius ? "Celsius" : "Fahrenheit");
-    Serial.printf("Display language: %s\n", useChineseDisplay ? "Chinese" : "English");
+    Serial.printf("Display language: %s\n",
+                  !useChineseDisplay ? "English" : (useTraditionalChinese ? "Traditional Chinese" : "Simplified Chinese"));
 }

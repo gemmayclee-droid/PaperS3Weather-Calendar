@@ -27,6 +27,7 @@ WeatherData currentWeather;
 bool useCelsius = false;
 bool nightModeSleep = true;
 bool useChineseDisplay = false;
+bool useTraditionalChinese = true;
 String cityName = DEFAULT_CITY;
 
 // Runtime state
@@ -34,13 +35,28 @@ unsigned long lastRefreshTime = 0;
 int refreshCounter = 0;
 
 void toggleDisplayLanguage() {
-    useChineseDisplay = !useChineseDisplay;
+    String displayLang = "en";
+
+    if (!useChineseDisplay) {
+        displayLang = "zh";
+        useChineseDisplay = true;
+        useTraditionalChinese = true;
+    } else if (useTraditionalChinese) {
+        displayLang = "zh_cn";
+        useChineseDisplay = true;
+        useTraditionalChinese = false;
+    } else {
+        displayLang = "en";
+        useChineseDisplay = false;
+        useTraditionalChinese = true;
+    }
 
     preferences.begin("weather", false);
-    preferences.putString("display_lang", useChineseDisplay ? "zh" : "en");
+    preferences.putString("display_lang", displayLang);
     preferences.end();
 
-    Serial.printf("Display language switched to: %s\n", useChineseDisplay ? "Chinese" : "English");
+    Serial.printf("Display language switched to: %s\n",
+                  !useChineseDisplay ? "English" : (useTraditionalChinese ? "Traditional Chinese" : "Simplified Chinese"));
     displayWeather();
 }
 
