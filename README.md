@@ -1,12 +1,8 @@
 # PaperS3Weather-Calendar
 
-![PaperS3Weather-Calendar](M5PaperS3_Weather_Calendar_EN.png)
-![PaperS3Weather-Calendar](M5PaperS3_Weather_Calendar_CN.png)
-![PaperS3Weather-Calendar](M5PaperS3_Weather_Calendar_ZH.png)
-
 PaperS3Weather-Calendar is a weather and Google Calendar dashboard for the M5Paper S3 e-ink display. It shows current weather, the next 8 hours, the next 3 days, and today's calendar events on one screen, with English, Simplified Chinese, or Traditional Chinese display labels selected from the setup portal.
 
-Firmware is built automatically with GitHub Actions. Download the latest `firmware.bin` from the project's [GitHub Releases](https://github.com/gemmayclee-droid/PaperS3Weather-Calendar/releases).
+Firmware is built automatically with GitHub Actions. Download the current `firmware.bin` from the project's [GitHub Releases](https://github.com/gemmayclee-droid/PaperS3Weather-Calendar/releases). The repository keeps only the newest firmware release to avoid stale downloads.
 
 [![Arduino](https://img.shields.io/badge/Arduino-Compatible-brightgreen.svg)](https://www.arduino.cc/)
 [![PlatformIO](https://img.shields.io/badge/PlatformIO-Ready-orange.svg)](https://platformio.org/)
@@ -23,7 +19,7 @@ Firmware is built automatically with GitHub Actions. Download the latest `firmwa
 - **Web setup portal**: Configure WiFi, location, calendar ICS URL, temperature unit, language, refresh intervals, and night mode.
 - **Automatic setup prompt**: Opens setup when WiFi is missing, WiFi fails, or the calendar ICS URL has not been configured.
 - **Power saving**: Deep sleep between updates, with separate day/night refresh intervals.
-- **GitHub release builds**: Every main-branch firmware build is published as a downloadable `firmware.bin`.
+- **GitHub release builds**: Each main-branch firmware build is published as `firmware.bin`; older automated firmware releases are removed after the newest one is published.
 
 ## Hardware Requirements
 
