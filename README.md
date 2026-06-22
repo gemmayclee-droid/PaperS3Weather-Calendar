@@ -12,6 +12,58 @@ Firmware is built automatically with GitHub Actions. Download the current `firmw
 [![PlatformIO](https://img.shields.io/badge/PlatformIO-Ready-orange.svg)](https://platformio.org/)
 [![ESP32-S3](https://img.shields.io/badge/ESP32--S3-Supported-blue.svg)](https://www.espressif.com/)
 
+## 简体中文说明
+
+PaperS3Weather-Calendar 是为 M5Paper S3 电子墨水屏制作的天气与 Google Calendar 仪表板。主画面会在同一页显示当前天气、未来 8 小时天气、未来 3 天天气，以及当天 Google Calendar 行程。
+
+主要功能：
+
+- 当前天气：温度、体感温度、天气状态、今日最高/最低温、湿度、风速、降雨、日出日落和日期。
+- 未来 8 小时：从当前天气时间往后两小时开始，显示时间、天气图标和温度。
+- 未来 3 天：显示日期、天气图标、最高/最低温和降雨概率。
+- Google Calendar：通过 ICS URL 显示当天最多三条行程。
+- 显示语言：默认英文，可在设置页面或主画面左下角切换英文、简体中文、繁体中文。
+- 自动构建：GitHub Actions 会发布最新 `firmware.bin`，Release 页面只保留最新版本。
+
+快速安装：
+
+1. 打开 [Releases 页面](https://github.com/gemmayclee-droid/PaperS3Weather-Calendar/releases)。
+2. 下载最新的 `firmware.bin`。
+3. 用你常用的 ESP32 烧录工具写入 M5Paper S3。
+
+首次设置：
+
+1. 连接 WiFi 热点 `PaperS3Weather-Calendar`，密码为 `configure`。
+2. 打开 `http://192.168.4.1`。
+3. 输入 WiFi、城市、Google Calendar ICS URL、温度单位、显示语言和刷新间隔。
+4. Google 私人日历请使用 **Secret address in iCal format**，普通分享链接或浏览器网址通常会导致 `HTTP 404`。
+
+## 繁體中文說明
+
+PaperS3Weather-Calendar 是為 M5Paper S3 電子墨水螢幕製作的天氣與 Google Calendar 儀表板。主畫面會在同一頁顯示目前天氣、未來 8 小時天氣、未來 3 天天氣，以及當天 Google Calendar 行程。
+
+主要功能：
+
+- 目前天氣：溫度、體感溫度、天氣狀態、今日最高/最低溫、濕度、風速、降雨、日出日落和日期。
+- 未來 8 小時：從目前天氣時間往後兩小時開始，顯示時間、天氣圖示和溫度。
+- 未來 3 天：顯示日期、天氣圖示、最高/最低溫和降雨機率。
+- Google Calendar：透過 ICS URL 顯示當天最多三筆行程。
+- 顯示語言：預設英文，可在設定頁或主畫面左下角切換英文、簡體中文、繁體中文。
+- 自動建置：GitHub Actions 會發佈最新 `firmware.bin`，Release 頁面只保留最新版本。
+
+快速安裝：
+
+1. 打開 [Releases 頁面](https://github.com/gemmayclee-droid/PaperS3Weather-Calendar/releases)。
+2. 下載最新的 `firmware.bin`。
+3. 用你常用的 ESP32 燒錄工具寫入 M5Paper S3。
+
+首次設定：
+
+1. 連接 WiFi 熱點 `PaperS3Weather-Calendar`，密碼為 `configure`。
+2. 打開 `http://192.168.4.1`。
+3. 輸入 WiFi、城市、Google Calendar ICS URL、溫度單位、顯示語言和刷新間隔。
+4. Google 私人日曆請使用 **Secret address in iCal format**，一般分享連結或瀏覽器網址通常會導致 `HTTP 404`。
+
 ## Features
 
 - **Single-screen dashboard**: Current weather, next 8 hours, next 3 days, and Google Calendar events.
