@@ -62,6 +62,12 @@ float getMoonPhase();
 bool isNightTime();
 unsigned long getRefreshInterval();
 
+// Calendar date helpers (prefer weather localDateYmd, else RTC/system time)
+bool resolveCalendarDate(int &year, int &month, int &day);
+int daysInMonth(int year, int month);
+int weekdaySundayZero(int year, int month, int day);
+const char* monthNameEnglish(int month);
+
 // Sensor reading (onboard SHT30)
 void initOnboardSensors();
 float readInternalTemperature();

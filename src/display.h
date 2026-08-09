@@ -24,5 +24,7 @@ void drawRSSI(int x, int y, int rssi);
 void drawBattery(int x, int y, int batteryPercent);
 void drawArrow(int x, int y, int asize, float aangle, int pwidth, int plength);
 void drawWindCompass(int x, int y, float angle, float windspeed, int radius);
+void drawCalendarEvents(int x, int y, int dx, int dy);
+void drawMonthCalendar(int x, int y, int dx, int dy);
 
 #endif // DISPLAY_H

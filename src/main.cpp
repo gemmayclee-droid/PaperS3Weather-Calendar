@@ -23,6 +23,7 @@ WeatherData currentWeather;
 bool useCelsius = false;
 bool nightModeSleep = true;
 String cityName = DEFAULT_CITY;
+String calendarMode = DEFAULT_CALENDAR_MODE;
 
 unsigned long lastRefreshTime = 0;
 int refreshCounter = 0;
@@ -85,9 +86,18 @@ void setup() {
 
     preferences.begin("weather", true);
     String configuredCalendarIcs = preferences.getString("calendar_ics", "");
+    String configuredCalendarMode = preferences.getString("calendar_mode", DEFAULT_CALENDAR_MODE);
     preferences.end();
+    configuredCalendarMode.trim();
+    configuredCalendarMode.toLowerCase();
+    if (configuredCalendarMode != "google") {
+        configuredCalendarMode = DEFAULT_CALENDAR_MODE;
+    }
+    calendarMode = configuredCalendarMode;
 
-    if (WiFi.status() == WL_CONNECTED && configuredCalendarIcs.length() == 0) {
+    if (WiFi.status() == WL_CONNECTED &&
+        calendarMode == "google" &&
+        configuredCalendarIcs.length() == 0) {
         Serial.println("Google Calendar ICS URL is missing; opening configuration portal");
         M5.Display.startWrite();
         M5.Display.fillScreen(TFT_WHITE);
@@ -126,10 +136,12 @@ void setup() {
 
             if (fetchWeatherData(latitude, longitude)) {
                 Serial.println("Weather fetch successful!");
-                preferences.begin("weather", true);
-                String calendarIcsUrl = preferences.getString("calendar_ics", "");
-                preferences.end();
-                fetchCalendarData(calendarIcsUrl);
+                if (calendarMode == "google") {
+                    preferences.begin("weather", true);
+                    String calendarIcsUrl = preferences.getString("calendar_ics", "");
+                    preferences.end();
+                    fetchCalendarData(calendarIcsUrl);
+                }
                 displayWeather();
                 lastRefreshTime = millis();
                 fetchSuccess = true;

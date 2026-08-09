@@ -40,6 +40,12 @@
 #define PANEL_SPACING 15
 #define PANEL_TITLE_HEIGHT 35
 
+// Month calendar grid (bottom-right panel content area)
+#define MONTH_CAL_WEEKDAY_HEADER_H 18
+#define MONTH_CAL_WEEK_ROWS 6
+#define MONTH_CAL_WEEK_COLS 7
+#define DEFAULT_CALENDAR_MODE "month"
+
 // Current Conditions Panel
 #define CURRENT_PANEL_SPACING 54
 #define MAIN_TEMP_Y_OFFSET 50
