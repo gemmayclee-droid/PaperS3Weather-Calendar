@@ -9,6 +9,7 @@ extern WeatherData currentWeather;
 extern M5Canvas canvas;
 extern String cityName;
 extern bool useCelsius;
+extern String calendarMode;
 
 void useDefaultFont(int size = 2) {
     canvas.setFont(nullptr);
@@ -495,6 +496,78 @@ void drawCalendarEvents(int x, int y, int dx, int dy) {
     }
 }
 
+void drawMonthCalendar(int x, int y, int dx, int dy) {
+    int year = 0, month = 0, todayDay = 0;
+    if (!resolveCalendarDate(year, month, todayDay)) {
+        canvas.setTextDatum(TL_DATUM);
+        useDisplayFont(2);
+        canvas.setTextColor(TFT_BLACK, TFT_WHITE);
+        canvas.drawString("Date unavailable", x + 14, y + 20);
+        return;
+    }
+
+    const int headerH = MONTH_CAL_WEEKDAY_HEADER_H;
+    const int gridH = dy - headerH;
+    if (gridH < MONTH_CAL_WEEK_ROWS || dx < MONTH_CAL_WEEK_COLS) {
+        return;
+    }
+
+    const int cellW = dx / MONTH_CAL_WEEK_COLS;
+    const int cellH = gridH / MONTH_CAL_WEEK_ROWS;
+    const int gridW = cellW * MONTH_CAL_WEEK_COLS;
+    const int gridTop = y + headerH;
+    const int firstWeekday = weekdaySundayZero(year, month, 1);
+    const int dim = daysInMonth(year, month);
+
+    static const char* WEEKDAYS[] = {"S", "M", "T", "W", "T", "F", "S"};
+    canvas.setTextSize(1);
+    canvas.setTextDatum(TC_DATUM);
+    canvas.setTextColor(TFT_BLACK, TFT_WHITE);
+    for (int col = 0; col < MONTH_CAL_WEEK_COLS; col++) {
+        int cx = x + col * cellW + cellW / 2;
+        canvas.drawString(WEEKDAYS[col], cx, y + 2);
+    }
+
+    canvas.setTextDatum(MC_DATUM);
+    for (int d = 1; d <= dim; d++) {
+        int index = firstWeekday + d - 1;
+        int row = index / MONTH_CAL_WEEK_COLS;
+        int col = index % MONTH_CAL_WEEK_COLS;
+        if (row >= MONTH_CAL_WEEK_ROWS) {
+            break;
+        }
+
+        int cellX = x + col * cellW;
+        int cellY = gridTop + row * cellH;
+        int textX = cellX + cellW / 2;
+        int textY = cellY + cellH / 2;
+        String dayStr = String(d);
+
+        if (d == todayDay) {
+            canvas.fillRect(cellX + 1, cellY + 1, cellW - 1, cellH - 1, TFT_BLACK);
+            canvas.setTextColor(TFT_WHITE, TFT_BLACK);
+            canvas.drawString(dayStr, textX, textY);
+            canvas.setTextColor(TFT_BLACK, TFT_WHITE);
+        } else {
+            canvas.setTextColor(TFT_BLACK, TFT_WHITE);
+            canvas.drawString(dayStr, textX, textY);
+        }
+    }
+
+    // Grid lines after fills so today cell stays crisp
+    for (int col = 0; col <= MONTH_CAL_WEEK_COLS; col++) {
+        int lx = x + col * cellW;
+        canvas.drawLine(lx, gridTop, lx, gridTop + cellH * MONTH_CAL_WEEK_ROWS, TFT_BLACK);
+    }
+    for (int row = 0; row <= MONTH_CAL_WEEK_ROWS; row++) {
+        int ly = gridTop + row * cellH;
+        canvas.drawLine(x, ly, x + gridW, ly, TFT_BLACK);
+    }
+
+    canvas.setTextDatum(TL_DATUM);
+    canvas.setTextColor(TFT_BLACK, TFT_WHITE);
+}
+
 void drawSunInfo(int x, int y, int dx, int dy) {
     canvas.setTextSize(3);
     canvas.setTextDatum(TC_DATUM);
@@ -680,9 +753,20 @@ void displayWeather() {
 
     canvas.drawRect(calendarX, dailyY, calendarW, dailyH, TFT_BLACK);
     useDisplayFont(2);
-    canvas.drawString("Google Calendar", calendarX + 12, dailyY + 10);
-    canvas.drawLine(calendarX, dailyY + PANEL_TITLE_HEIGHT, calendarX + calendarW, dailyY + PANEL_TITLE_HEIGHT, TFT_BLACK);
-    drawCalendarEvents(calendarX, dailyY + PANEL_TITLE_HEIGHT, calendarW, dailyH - PANEL_TITLE_HEIGHT);
+    if (calendarMode == "google") {
+        canvas.drawString("Google Calendar", calendarX + 12, dailyY + 10);
+        canvas.drawLine(calendarX, dailyY + PANEL_TITLE_HEIGHT, calendarX + calendarW, dailyY + PANEL_TITLE_HEIGHT, TFT_BLACK);
+        drawCalendarEvents(calendarX, dailyY + PANEL_TITLE_HEIGHT, calendarW, dailyH - PANEL_TITLE_HEIGHT);
+    } else {
+        int year = 0, month = 0, day = 0;
+        String title = "Month Calendar";
+        if (resolveCalendarDate(year, month, day)) {
+            title = String(monthNameEnglish(month)) + " " + String(year);
+        }
+        canvas.drawString(title, calendarX + 12, dailyY + 10);
+        canvas.drawLine(calendarX, dailyY + PANEL_TITLE_HEIGHT, calendarX + calendarW, dailyY + PANEL_TITLE_HEIGHT, TFT_BLACK);
+        drawMonthCalendar(calendarX, dailyY + PANEL_TITLE_HEIGHT, calendarW, dailyH - PANEL_TITLE_HEIGHT);
+    }
 
     // Push to display
     canvas.pushSprite(0, 0);

@@ -229,3 +229,56 @@ int getRSSIQuality(int rssi) {
     if (quality < 0) quality = 0;
     return quality;
 }
+
+bool resolveCalendarDate(int &year, int &month, int &day) {
+    if (currentWeather.localDateYmd.length() == 8) {
+        year = currentWeather.localDateYmd.substring(0, 4).toInt();
+        month = currentWeather.localDateYmd.substring(4, 6).toInt();
+        day = currentWeather.localDateYmd.substring(6, 8).toInt();
+        if (year >= 2000 && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+            return true;
+        }
+    }
+
+    struct tm timeinfo;
+    if (!getLocalTime(&timeinfo)) {
+        return false;
+    }
+    year = timeinfo.tm_year + 1900;
+    month = timeinfo.tm_mon + 1;
+    day = timeinfo.tm_mday;
+    return true;
+}
+
+int daysInMonth(int year, int month) {
+    static const int DAYS[] = {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+    if (month < 1 || month > 12) {
+        return 30;
+    }
+    if (month == 2) {
+        bool leap = (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
+        return leap ? 29 : 28;
+    }
+    return DAYS[month];
+}
+
+int weekdaySundayZero(int year, int month, int day) {
+    struct tm tm = {};
+    tm.tm_year = year - 1900;
+    tm.tm_mon = month - 1;
+    tm.tm_mday = day;
+    tm.tm_hour = 12;
+    mktime(&tm);
+    return tm.tm_wday;  // Sunday = 0
+}
+
+const char* monthNameEnglish(int month) {
+    static const char* NAMES[] = {
+        "", "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+    };
+    if (month < 1 || month > 12) {
+        return "";
+    }
+    return NAMES[month];
+}

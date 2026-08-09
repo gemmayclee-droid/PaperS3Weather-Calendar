@@ -12,8 +12,9 @@ PaperWeather-Calendar is a weather and Google Calendar dashboard for the **M5Pap
 
 ## Features
 
-- **Single-screen dashboard**: Current weather, next 8 hours, next 3 days, and Google Calendar events
-- **Web setup portal**: WiFi, location, calendar ICS URL, temperature unit, refresh intervals, night mode
+- **Single-screen dashboard**: Current weather, next 8 hours, next 3 days, plus a calendar panel
+- **Calendar panel mode**: Choose **Month Calendar** (local month grid; today = black cell with white number) or **Google Calendar** (today's ICS events)
+- **Web setup portal**: WiFi, location, calendar mode / ICS URL, temperature unit, refresh intervals, night mode
 - **Onboard SHT30**: Local temperature and humidity when the sensor is available
 - **Power saving**: RTC timer sleep between updates, with separate day/night refresh intervals
 - **Open-Meteo weather API**: No API key required
@@ -38,12 +39,19 @@ pio device monitor --baud 115200
 
 `platformio.ini` uses `board = m5stack-fire` with `-DARDUINO_M5STACK_Paper` because `m5stack-paper` is missing from many PlatformIO installs. Flash size is 16MB with PSRAM enabled. If your PlatformIO package includes `m5stack-paper`, you can switch `board` to that name.
 
+## Install to m5Paper
+```
+pio run -e Paper --target upload
+```
+
 ## First Setup
 
-1. After boot (or when WiFi/calendar is missing), connect to WiFi **`PaperWeather-Calendar`**, password **`configure`**.
+1. After boot (or when WiFi is missing), connect to WiFi **`PaperWeather-Calendar`**, password **`configure`**.
 2. Open `http://192.168.4.1`.
-3. Enter WiFi, city (or coordinates), Google Calendar ICS URL, temperature unit, and refresh settings.
-4. Click **Save & Restart**.
+3. Enter WiFi, city (or coordinates), temperature unit, and refresh settings.
+4. Under **Calendar Panel**, choose **Month Calendar** (default) or **Google Calendar**.
+5. If Google Calendar is selected, paste an ICS URL (required for that mode only).
+6. Click **Save & Restart**.
 
 ### Re-open configuration later
 
@@ -53,11 +61,16 @@ pio device monitor --baud 115200
 
 To leave the config portal without saving, rotate the side wheel **up** (`BtnA`).
 
+## Calendar Panel
+
+- **Month Calendar** (default): shows the current month as a Sunday-start grid. Today's date uses a black background with a white number. No ICS URL is required.
+- **Google Calendar**: lists up to three of today's events from an ICS feed. An ICS URL is required; if missing, the setup portal opens after WiFi connects.
+
 ## Google Calendar ICS URL
 
 1. Open Google Calendar → calendar settings → **Integrate calendar**.
 2. Copy **Secret address in iCal format** (private) or the public iCal address.
-3. Paste into the setup portal. The URL should contain `/calendar/ical/` and end with `/basic.ics`.
+3. Choose **Google Calendar** in the setup portal and paste the URL. It should contain `/calendar/ical/` and end with `/basic.ics`.
 
 `HTTP 404` usually means the URL is not a valid accessible ICS feed.
 

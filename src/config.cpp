@@ -10,6 +10,7 @@ extern Preferences preferences;
 extern bool useCelsius;
 extern bool nightModeSleep;
 extern String cityName;
+extern String calendarMode;
 
 static String htmlEscape(String value) {
     value.replace("&", "&amp;");
@@ -17,6 +18,15 @@ static String htmlEscape(String value) {
     value.replace("<", "&lt;");
     value.replace(">", "&gt;");
     return value;
+}
+
+static String normalizeCalendarMode(String mode) {
+    mode.trim();
+    mode.toLowerCase();
+    if (mode == "google") {
+        return "google";
+    }
+    return DEFAULT_CALENDAR_MODE;
 }
 
 void setupWiFi() {
@@ -84,12 +94,16 @@ void startConfigPortal() {
         String currentLon = preferences.getString("longitude", "");
         String currentUnit = preferences.getString("tempunit", "F");
         String currentCalendarIcs = preferences.getString("calendar_ics", "");
+        String currentCalendarMode = normalizeCalendarMode(
+            preferences.getString("calendar_mode", DEFAULT_CALENDAR_MODE));
         bool currentNightMode = preferences.getBool("nightmode", true);
         int currentDayInterval = preferences.getInt("day_interval", 10);
         int currentNightInterval = preferences.getInt("night_interval", 60);
         int currentNightStart = preferences.getInt("night_start", 22);
         int currentNightEnd = preferences.getInt("night_end", 5);
         preferences.end();
+
+        bool modeIsGoogle = (currentCalendarMode == "google");
 
         String html = "<!DOCTYPE html><html><head>";
         html += "<meta charset='UTF-8'>";
@@ -113,12 +127,21 @@ void startConfigPortal() {
         html += ".current{font-size:13px;color:#0066cc;padding:10px;background:#e3f2fd;border-radius:4px;margin-bottom:15px}";
         html += ".section{margin:20px 0}";
         html += "hr{border:none;border-top:1px solid #eee;margin:25px 0}";
+        html += "#ics_group{margin-top:10px}";
         html += "</style>";
 
         html += "<script>";
+        html += "function updateCalendarFields(){";
+        html += "  var mode=document.forms['config']['calendar_mode'].value;";
+        html += "  var icsGroup=document.getElementById('ics_group');";
+        html += "  var icsInput=document.forms['config']['calendar_ics'];";
+        html += "  if(mode==='google'){icsGroup.style.display='block';icsInput.required=true;}";
+        html += "  else{icsGroup.style.display='none';icsInput.required=false;}";
+        html += "}";
         html += "function validateForm(){";
         html += "  var ssid=document.forms['config']['ssid'].value;";
         html += "  var city=document.forms['config']['city'].value;";
+        html += "  var mode=document.forms['config']['calendar_mode'].value;";
         html += "  var calendar=document.forms['config']['calendar_ics'].value;";
         html += "  var dayInt=parseInt(document.forms['config']['day_interval'].value);";
         html += "  var nightInt=parseInt(document.forms['config']['night_interval'].value);";
@@ -126,13 +149,14 @@ void startConfigPortal() {
         html += "  var nightEnd=parseInt(document.forms['config']['night_end'].value);";
         html += "  if(ssid==''){alert('WiFi SSID is required');return false;}";
         html += "  if(city==''){alert('City name is required');return false;}";
-        html += "  if(calendar==''){alert('Google Calendar ICS URL is required');return false;}";
+        html += "  if(mode==='google'&&calendar==''){alert('Google Calendar ICS URL is required');return false;}";
         html += "  if(dayInt<5||dayInt>120){alert('Day refresh must be 5-120 minutes');return false;}";
         html += "  if(nightInt<15||nightInt>240){alert('Night refresh must be 15-240 minutes');return false;}";
         html += "  if(nightStart<0||nightStart>23){alert('Night start hour must be 0-23');return false;}";
         html += "  if(nightEnd<0||nightEnd>23){alert('Night end hour must be 0-23');return false;}";
         html += "  return true;";
         html += "}";
+        html += "window.addEventListener('DOMContentLoaded',updateCalendarFields);";
         html += "</script>";
 
         html += "</head><body>";
@@ -147,7 +171,7 @@ void startConfigPortal() {
             }
             html += "<br>Temperature: " + String(currentUnit == "C" ? "Celsius" : "Fahrenheit");
             html += "<br>Updates: " + String(currentDayInterval) + " min (day), " + String(currentNightInterval) + " min (night)";
-            html += "<br>Calendar: " + String(currentCalendarIcs.length() > 0 ? "ON" : "OFF");
+            html += "<br>Calendar: " + String(modeIsGoogle ? "Google Calendar" : "Month Calendar");
             html += "<br>Night Mode: " + String(currentNightMode ? "ON" : "OFF");
             if (currentNightMode) {
                 html += " (" + String(currentNightStart) + ":00 - " + String(currentNightEnd) + ":00)";
@@ -181,10 +205,18 @@ void startConfigPortal() {
         html += "</div>";
 
         html += "<div class='section'>";
-        html += "<h3>Google Calendar</h3>";
+        html += "<h3>Calendar Panel</h3>";
+        html += "<label>Panel Mode:</label>";
+        html += "<select name='calendar_mode' onchange='updateCalendarFields()'>";
+        html += "<option value='month'" + String(!modeIsGoogle ? " selected" : "") + ">Month Calendar</option>";
+        html += "<option value='google'" + String(modeIsGoogle ? " selected" : "") + ">Google Calendar</option>";
+        html += "</select>";
+        html += "<div class='help'>Month Calendar shows a local month grid with today highlighted. Google Calendar shows today's events from an ICS feed.</div>";
+        html += "<div id='ics_group'" + String(modeIsGoogle ? "" : " style='display:none'") + ">";
         html += "<label>ICS URL:</label>";
-        html += "<input name='calendar_ics' value=\"" + htmlEscape(currentCalendarIcs) + "\" placeholder='https://calendar.google.com/calendar/ical/.../basic.ics' required>";
-        html += "<div class='help'>For private Google calendars, paste the Secret address in iCal format from Settings > Integrate calendar. It should contain /calendar/ical/ and end with /basic.ics. HTTP 404 means the URL is not a valid accessible ICS feed.</div>";
+        html += "<input name='calendar_ics' value=\"" + htmlEscape(currentCalendarIcs) + "\" placeholder='https://calendar.google.com/calendar/ical/.../basic.ics'" + String(modeIsGoogle ? " required" : "") + ">";
+        html += "<div class='help'>For private Google calendars, paste the Secret address in iCal format from Settings > Integrate calendar. It should contain /calendar/ical/ and end with /basic.ics.</div>";
+        html += "</div>";
         html += "</div>";
 
         html += "<div class='section'>";
@@ -233,6 +265,7 @@ void startConfigPortal() {
         String lat = server.arg("lat");
         String lon = server.arg("lon");
         String calendarIcs = server.arg("calendar_ics");
+        String calendarModeArg = normalizeCalendarMode(server.arg("calendar_mode"));
         String tempUnit = server.arg("tempunit");
         bool nightMode = server.arg("nightmode") == "1";
         int dayInterval = server.arg("day_interval").toInt();
@@ -247,7 +280,7 @@ void startConfigPortal() {
             return;
         }
 
-        if (calendarIcs.length() == 0) {
+        if (calendarModeArg == "google" && calendarIcs.length() == 0) {
             server.send(400, "text/html",
                 "<html><body><h1>Error</h1><p>Google Calendar ICS URL is required!</p>"
                 "<a href='/'>Go Back</a></body></html>");
@@ -292,6 +325,7 @@ void startConfigPortal() {
         preferences.putString("password", password);
         preferences.putString("city", city);
         preferences.putString("tempunit", tempUnit);
+        preferences.putString("calendar_mode", calendarModeArg);
         preferences.putString("calendar_ics", calendarIcs);
         preferences.putBool("nightmode", nightMode);
         preferences.putInt("day_interval", dayInterval);
@@ -338,6 +372,8 @@ void loadPreferences(float &latitude, float &longitude, String &cityName) {
     String lonStr = preferences.getString("longitude", String(COORD_NOT_SET));
     cityName = preferences.getString("city", DEFAULT_CITY);
     String tempUnit = preferences.getString("tempunit", "F");
+    calendarMode = normalizeCalendarMode(
+        preferences.getString("calendar_mode", DEFAULT_CALENDAR_MODE));
     useCelsius = (tempUnit == "C");
     nightModeSleep = preferences.getBool("nightmode", true);
     preferences.end();
@@ -366,4 +402,5 @@ void loadPreferences(float &latitude, float &longitude, String &cityName) {
 
     Serial.printf("Using coordinates: %.4f, %.4f (%s)\n", latitude, longitude, cityName.c_str());
     Serial.printf("Temperature unit: %s\n", useCelsius ? "Celsius" : "Fahrenheit");
+    Serial.printf("Calendar mode: %s\n", calendarMode.c_str());
 }
