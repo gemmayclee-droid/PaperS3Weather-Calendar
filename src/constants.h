@@ -24,7 +24,9 @@
 #define REFRESH_INTERVAL_NIGHT_MS (DEFAULT_FACE0_NIGHT_MIN * 60000UL)
 #define NIGHT_START_HOUR 22
 #define NIGHT_END_HOUR 5
-#define CLOCK_PARTIAL_FULL_EVERY 30  // full Face 1 redraw every N clock-only updates (ghosting)
+#define CLOCK_PARTIAL_FULL_EVERY 30  // full Face 1 redraw every N minute ticks (ghosting)
+#define CLOCK_WEATHER_FETCH_MS (60UL * 60UL * 1000UL)  // hourly weather while clock stays awake
+#define CLOCK_LOOP_POLL_MS 200
 
 // User Interaction
 #define USER_INTERACTION_TIMEOUT_MS 30000   // 30 seconds to tap screen before sleep

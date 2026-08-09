@@ -82,6 +82,43 @@ void setupWiFi() {
     startConfigPortal();
 }
 
+bool connectWiFiStation() {
+    preferences.begin("weather", true);
+    String ssid = preferences.getString("ssid", "");
+    String password = preferences.getString("password", "");
+    preferences.end();
+
+    if (ssid.length() == 0) {
+        return false;
+    }
+
+    WiFi.mode(WIFI_STA);
+    for (int attempt = 0; attempt < WIFI_RETRY_ATTEMPTS; attempt++) {
+        if (attempt > 0) {
+            delay(WIFI_RETRY_DELAY_MS);
+        }
+        WiFi.begin(ssid.c_str(), password.c_str());
+        unsigned long start = millis();
+        while (WiFi.status() != WL_CONNECTED && millis() - start < WIFI_TIMEOUT_MS) {
+            delay(200);
+        }
+        if (WiFi.status() == WL_CONNECTED) {
+            Serial.println("WiFi station connected");
+            return true;
+        }
+        WiFi.disconnect(true);
+    }
+    Serial.println("WiFi station connect failed");
+    return false;
+}
+
+void disconnectWiFi() {
+    WiFi.disconnect(true);
+    WiFi.mode(WIFI_OFF);
+    delay(50);
+    Serial.println("WiFi powered off");
+}
+
 void startConfigPortal() {
     WiFi.mode(WIFI_AP);
     WiFi.softAP(CONFIG_AP_SSID, CONFIG_AP_PASSWORD);
@@ -253,7 +290,7 @@ void startConfigPortal() {
 
         html += "<div class='section'>";
         html += "<h3>Update Schedule</h3>";
-        html += "<div class='help'>Each face has its own day/night refresh interval. Clock face can update every 1 minute; weather data on the clock face is only re-fetched using the weather-face interval.</div>";
+        html += "<div class='help'>Weather face uses deep sleep between updates. Clock face stays awake: the clock panel refreshes every minute with WiFi off; weather is re-fetched once per hour. Clock day/night values are reserved for future use.</div>";
         html += "<label>Weather face — day:</label>";
         html += "<select name='face0_day'>" + refreshIntervalOptionsHtml(face0Day) + "</select>";
         html += "<label>Weather face — night:</label>";
