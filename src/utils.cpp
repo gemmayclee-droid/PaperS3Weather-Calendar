@@ -4,64 +4,23 @@
 #include <Preferences.h>
 #include <WiFi.h>
 #include <sys/time.h>
+#include <M5UnitENV.h>
 
 extern Preferences preferences;
 extern bool nightModeSleep;
-extern bool useChineseDisplay;
-extern bool useTraditionalChinese;
+extern bool useCelsius;
 
-struct ChineseTextReplacement {
-    const char* simplified;
-    const char* traditional;
-};
+static SHT3X sht3x;
+static bool shtReady = false;
 
-static const ChineseTextReplacement CHINESE_TEXT_REPLACEMENTS[] = {
-    {"会议", "會議"},
-    {"项目", "項目"},
-    {"计划", "計劃"},
-    {"开发", "開發"},
-    {"设计", "設計"},
-    {"讨论", "討論"},
-    {"确认", "確認"},
-    {"准备", "準備"},
-    {"复盘", "復盤"},
-    {"周会", "週會"},
-    {"台湾", "台灣"},
-    {"台东", "台東"},
-    {"桃园", "桃園"},
-    {"奥克兰", "奧克蘭"},
-    {"东京", "東京"},
-    {"会", "會"},
-    {"议", "議"},
-    {"项", "項"},
-    {"计", "計"},
-    {"划", "劃"},
-    {"开", "開"},
-    {"发", "發"},
-    {"设", "設"},
-    {"讨", "討"},
-    {"论", "論"},
-    {"认", "認"},
-    {"备", "備"},
-    {"复", "復"},
-    {"周", "週"},
-    {"历", "曆"},
-    {"气", "氣"},
-    {"云", "雲"},
-    {"阴", "陰"},
-    {"冻", "凍"},
-    {"阵", "陣"},
-    {"兰", "蘭"},
-    {"区", "區"},
-    {"奥", "奧"},
-    {"东", "東"},
-    {"园", "園"},
-    {"广", "廣"},
-    {"门", "門"},
-    {"岛", "島"},
-    {"国", "國"},
-    {"县", "縣"}
-};
+void initOnboardSensors() {
+    shtReady = sht3x.begin(&Wire, SHT3X_I2C_ADDR, 21, 22, 400000U);
+    if (shtReady) {
+        Serial.println("SHT30 initialized");
+    } else {
+        Serial.println("SHT30 not found - using weather API values for local temp/humidity");
+    }
+}
 
 void setupTime() {
     // Check if RTC already has a valid date (year > 2023 means it was set previously)
@@ -96,8 +55,11 @@ void setupTime() {
     }
 }
 
-float convertTemp(float temp) {
-    return temp;
+float convertTemp(float tempCelsius) {
+    if (useCelsius) {
+        return tempCelsius;
+    }
+    return tempCelsius * 9.0f / 5.0f + 32.0f;
 }
 
 String formatTemp(float temp) {
@@ -195,7 +157,6 @@ bool isNightTime() {
 
     int currentHour = timeinfo.tm_hour;
 
-    // Load night mode hours from preferences
     preferences.begin("weather", true);
     int nightStart = preferences.getInt("night_start", NIGHT_START_HOUR);
     int nightEnd = preferences.getInt("night_end", NIGHT_END_HOUR);
@@ -209,31 +170,32 @@ bool isNightTime() {
 }
 
 unsigned long getRefreshInterval() {
-    // Load refresh intervals from preferences
     preferences.begin("weather", true);
     int dayInterval = preferences.getInt("day_interval", 10);
     int nightInterval = preferences.getInt("night_interval", 60);
     preferences.end();
 
     if (isNightTime()) {
-        return nightInterval * 60000;  // Convert minutes to milliseconds
+        return nightInterval * 60000;
     } else {
-        return dayInterval * 60000;  // Convert minutes to milliseconds
+        return dayInterval * 60000;
     }
 }
 
 float readInternalTemperature() {
-    float temp = SENSOR_ERROR_VALUE;
-    M5.Imu.update();
-    if (M5.Imu.getTemp(&temp)) {
-        return temp;
+    if (!shtReady) {
+        return SENSOR_ERROR_VALUE;
     }
-    return SENSOR_ERROR_VALUE;
+    sht3x.update();
+    return convertTemp(sht3x.cTemp);
 }
 
 float readInternalHumidity() {
-    // M5Paper S3 doesn't have humidity sensor in IMU
-    return SENSOR_ERROR_VALUE;
+    if (!shtReady) {
+        return SENSOR_ERROR_VALUE;
+    }
+    sht3x.update();
+    return sht3x.humidity;
 }
 
 String urlEncode(String str) {
@@ -255,54 +217,12 @@ String urlEncode(String str) {
     return encoded;
 }
 
-static void replaceChineseText(String &text, bool toTraditional) {
-    for (const auto &replacement : CHINESE_TEXT_REPLACEMENTS) {
-        if (toTraditional) {
-            text.replace(replacement.simplified, replacement.traditional);
-        } else {
-            text.replace(replacement.traditional, replacement.simplified);
-        }
-    }
-}
-
-String localizeDisplayText(String text) {
-    if (!useChineseDisplay || text.length() == 0) {
-        return text;
-    }
-
-    replaceChineseText(text, useTraditionalChinese);
-    return text;
-}
-
-String localizeCityName(String text) {
-    if (!useChineseDisplay || text.length() == 0) {
-        return text;
-    }
-
-    String lower = text;
-    lower.toLowerCase();
-    lower.trim();
-
-    if (lower == "taipei" || lower == "taipei city") return useTraditionalChinese ? "台北市" : "台北市";
-    if (lower == "new taipei" || lower == "new taipei city") return useTraditionalChinese ? "新北市" : "新北市";
-    if (lower == "taichung" || lower == "taichung city") return useTraditionalChinese ? "台中市" : "台中市";
-    if (lower == "tainan" || lower == "tainan city") return useTraditionalChinese ? "台南市" : "台南市";
-    if (lower == "kaohsiung" || lower == "kaohsiung city") return useTraditionalChinese ? "高雄市" : "高雄市";
-    if (lower == "hsinchu" || lower == "hsinchu city") return useTraditionalChinese ? "新竹市" : "新竹市";
-    if (lower == "taoyuan" || lower == "taoyuan city") return useTraditionalChinese ? "桃園市" : "桃园市";
-    if (lower == "auckland") return useTraditionalChinese ? "奧克蘭" : "奥克兰";
-
-    return localizeDisplayText(text);
-}
-
-// Drawing helper to reduce code duplication
 void drawDegreeSymbol(int x, int y, int radius) {
     for (int i = 0; i < 2; i++) {
         canvas.drawCircle(x, y, radius - i, TFT_BLACK);
     }
 }
 
-// RSSI quality calculation (reduces duplication)
 int getRSSIQuality(int rssi) {
     int quality = RSSI_QUALITY_MULTIPLIER * (rssi + RSSI_QUALITY_OFFSET);
     if (quality > 100) quality = 100;

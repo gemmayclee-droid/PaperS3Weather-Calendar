@@ -8,8 +8,7 @@
 extern WeatherData currentWeather;
 extern M5Canvas canvas;
 extern String cityName;
-extern bool useChineseDisplay;
-extern bool useTraditionalChinese;
+extern bool useCelsius;
 
 void useDefaultFont(int size = 2) {
     canvas.setFont(nullptr);
@@ -18,56 +17,14 @@ void useDefaultFont(int size = 2) {
 }
 
 void useDisplayFont(int size = 2) {
-    if (useChineseDisplay) {
-        canvas.setFont(useTraditionalChinese ? &fonts::efontTW_24 : &fonts::efontCN_24);
-        canvas.setTextSize(1);
-    } else {
-        useDefaultFont(size);
-    }
+    useDefaultFont(size);
 }
 
-const char* labelText(const char* english, const char* traditionalChinese, const char* simplifiedChinese) {
-    if (!useChineseDisplay) {
-        return english;
-    }
-    return useTraditionalChinese ? traditionalChinese : simplifiedChinese;
-}
-
-const char* labelText(const char* english, const char* chinese) {
-    return labelText(english, chinese, chinese);
+void useCompactDisplayFont(int englishSize = 2) {
+    useDefaultFont(englishSize);
 }
 
 String fitText(String text, int maxWidth);
-String fitTextMixedChinese(String text, int maxWidth);
-void drawStringMixedChinese(String text, int x, int y);
-
-void useCompactDisplayFont(int englishSize = 2) {
-    if (useChineseDisplay) {
-        canvas.setFont(useTraditionalChinese ? &fonts::efontTW_16 : &fonts::efontCN_16);
-        canvas.setTextSize(1);
-    } else {
-        useDefaultFont(englishSize);
-    }
-}
-
-String getDisplayWeatherConditionText(int weatherCode) {
-    if (!useChineseDisplay) {
-        return getWeatherConditionText(weatherCode);
-    }
-
-    if (weatherCode == 0) return "晴";
-    if (weatherCode >= 1 && weatherCode <= 2) return useTraditionalChinese ? "多雲" : "多云";
-    if (weatherCode == 3) return useTraditionalChinese ? "陰" : "阴";
-    if (weatherCode >= 45 && weatherCode <= 48) return useTraditionalChinese ? "霧" : "雾";
-    if (weatherCode >= 51 && weatherCode <= 57) return "毛毛雨";
-    if (weatherCode >= 61 && weatherCode <= 65) return "雨";
-    if (weatherCode >= 66 && weatherCode <= 67) return useTraditionalChinese ? "凍雨" : "冻雨";
-    if (weatherCode >= 71 && weatherCode <= 77) return "雪";
-    if (weatherCode >= 80 && weatherCode <= 82) return useTraditionalChinese ? "陣雨" : "阵雨";
-    if (weatherCode >= 85 && weatherCode <= 86) return useTraditionalChinese ? "陣雪" : "阵雪";
-    if (weatherCode >= 95) return "雷雨";
-    return useTraditionalChinese ? "未知" : "未知";
-}
 
 String getDisplayDateLabel(int dayOffset) {
     struct tm timeinfo;
@@ -81,11 +38,7 @@ String getDisplayDateLabel(int dayOffset) {
     char dateStr[12];
     sprintf(dateStr, "%02d/%02d", timeinfo.tm_mon + 1, timeinfo.tm_mday);
     const char* daysEn[] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
-    const char* daysTw[] = {"週日", "週一", "週二", "週三", "週四", "週五", "週六"};
-    const char* daysCn[] = {"周日", "周一", "周二", "周三", "周四", "周五", "周六"};
-    const char* dayLabel = !useChineseDisplay ? daysEn[timeinfo.tm_wday] :
-                           (useTraditionalChinese ? daysTw[timeinfo.tm_wday] : daysCn[timeinfo.tm_wday]);
-    return String(dayLabel) + " " + String(dateStr);
+    return String(daysEn[timeinfo.tm_wday]) + " " + String(dateStr);
 }
 
 void drawIcon(int x, int y, const uint8_t *icon, int dx, int dy, bool highContrast) {
@@ -453,31 +406,27 @@ void drawCurrentConditions(int x, int y, int dx, int dy) {
     drawIcon(iconX, iconY, weatherIcon, WEATHER_ICON_SIZE, WEATHER_ICON_SIZE, true);
 
     // Draw condition text
-    String condition = getDisplayWeatherConditionText(currentWeather.weatherCode);
-    if (useChineseDisplay) {
-        useDisplayFont();
-    } else {
-        canvas.setTextSize(condition.length() > 14 ? 2 : 3);
-    }
+    String condition = getWeatherConditionText(currentWeather.weatherCode);
+    canvas.setTextSize(condition.length() > 14 ? 2 : 3);
     canvas.drawString(condition, x + 300, y + 50);
 
     useDisplayFont(2);
-    canvas.drawString(String(labelText("Feels ", "體感 ", "体感 ")) + formatTemp(currentWeather.apparentTemperature), x + 300, y + 84);
-    canvas.drawString(String(labelText("Today ", "今天 ")) + formatTemp(currentWeather.todayMinTemp) + " / " +
+    canvas.drawString(String("Feels ") + formatTemp(currentWeather.apparentTemperature), x + 300, y + 84);
+    canvas.drawString(String("Today ") + formatTemp(currentWeather.todayMinTemp) + " / " +
                       formatTemp(currentWeather.todayMaxTemp), x + 300, y + 110);
 
     int detailsX = x + 545;
-    canvas.drawString(labelText("Humidity", "濕度", "湿度"), detailsX, y + 46);
+    canvas.drawString("Humidity", detailsX, y + 46);
     canvas.drawString(String((int)currentWeather.humidity) + "%", detailsX + 120, y + 46);
-    canvas.drawString(labelText("Wind", "風速", "风速"), detailsX, y + 74);
+    canvas.drawString("Wind", detailsX, y + 74);
     canvas.drawString(String(currentWeather.windSpeed, 1) + (useCelsius ? " km/h" : " mph"), detailsX + 120, y + 74);
-    canvas.drawString(labelText("Rain", "降雨"), detailsX, y + 102);
+    canvas.drawString("Rain", detailsX, y + 102);
     canvas.drawString(String(currentWeather.precipitation, 1) + " mm", detailsX + 120, y + 102);
 
     int sunX = x + 760;
-    canvas.drawString(labelText("Sunrise", "日出"), sunX, y + 46);
+    canvas.drawString("Sunrise", sunX, y + 46);
     canvas.drawString(currentWeather.sunriseTime.length() > 0 ? currentWeather.sunriseTime : "--:--", sunX + 105, y + 46);
-    canvas.drawString(labelText("Sunset", "日落"), sunX, y + 74);
+    canvas.drawString("Sunset", sunX, y + 74);
     canvas.drawString(currentWeather.sunsetTime.length() > 0 ? currentWeather.sunsetTime : "--:--", sunX + 105, y + 74);
 
     if (hasTime) {
@@ -505,7 +454,7 @@ void drawDailyForecast(int x, int y, int dx, int dy, int forecastIndex) {
     String tempText = formatTemp(currentWeather.forecastMinTemp[forecastIndex]) + "/" +
                       formatTemp(currentWeather.forecastMaxTemp[forecastIndex]);
     canvas.drawString(fitText(tempText, textW), x + dx / 2, y + 98);
-    canvas.drawString(fitText(String(labelText("Rain ", "降雨 ")) + String((int)currentWeather.forecastRain[forecastIndex]) + "%", textW),
+    canvas.drawString(fitText(String("Rain ") + String((int)currentWeather.forecastRain[forecastIndex]) + "%", textW),
                       x + dx / 2, y + 122);
     canvas.setTextDatum(TL_DATUM);
 }
@@ -521,138 +470,12 @@ String fitText(String text, int maxWidth) {
     return text + "...";
 }
 
-const lgfx::IFont* primaryChineseFont() {
-    return useTraditionalChinese ? &fonts::efontTW_24 : &fonts::efontCN_24;
-}
-
-const lgfx::IFont* fallbackChineseFont() {
-    return useTraditionalChinese ? &fonts::efontCN_24 : &fonts::efontTW_24;
-}
-
-bool readNextUtf8Glyph(const String& text, int& index, String& glyph, uint32_t& codepoint) {
-    if (index >= text.length()) {
-        return false;
-    }
-
-    int start = index;
-    uint8_t first = static_cast<uint8_t>(text[index++]);
-
-    if ((first & 0x80) == 0) {
-        codepoint = first;
-    } else if ((first & 0xE0) == 0xC0 && index < text.length()) {
-        uint8_t b1 = static_cast<uint8_t>(text[index++]);
-        codepoint = ((first & 0x1F) << 6) | (b1 & 0x3F);
-    } else if ((first & 0xF0) == 0xE0 && index + 1 < text.length()) {
-        uint8_t b1 = static_cast<uint8_t>(text[index++]);
-        uint8_t b2 = static_cast<uint8_t>(text[index++]);
-        codepoint = ((first & 0x0F) << 12) | ((b1 & 0x3F) << 6) | (b2 & 0x3F);
-    } else if ((first & 0xF8) == 0xF0 && index + 2 < text.length()) {
-        uint8_t b1 = static_cast<uint8_t>(text[index++]);
-        uint8_t b2 = static_cast<uint8_t>(text[index++]);
-        uint8_t b3 = static_cast<uint8_t>(text[index++]);
-        codepoint = ((first & 0x07) << 18) | ((b1 & 0x3F) << 12) |
-                    ((b2 & 0x3F) << 6) | (b3 & 0x3F);
-    } else {
-        codepoint = first;
-    }
-
-    glyph = text.substring(start, index);
-    return true;
-}
-
-bool fontHasGlyph(const lgfx::IFont* font, uint32_t codepoint) {
-    if (codepoint > 0xFFFF) {
-        return false;
-    }
-
-    lgfx::FontMetrics metrics;
-    return font->updateFontMetric(&metrics, static_cast<uint16_t>(codepoint));
-}
-
-const lgfx::IFont* fontForGlyph(uint32_t codepoint) {
-    const lgfx::IFont* primary = primaryChineseFont();
-    if (fontHasGlyph(primary, codepoint)) {
-        return primary;
-    }
-
-    const lgfx::IFont* fallback = fallbackChineseFont();
-    if (fontHasGlyph(fallback, codepoint)) {
-        return fallback;
-    }
-
-    return primary;
-}
-
-int textWidthMixedChinese(String text) {
-    if (!useChineseDisplay) {
-        return canvas.textWidth(text);
-    }
-
-    int width = 0;
-    int index = 0;
-    String glyph;
-    uint32_t codepoint;
-    while (readNextUtf8Glyph(text, index, glyph, codepoint)) {
-        canvas.setFont(fontForGlyph(codepoint));
-        canvas.setTextSize(1);
-        width += canvas.textWidth(glyph);
-    }
-    useDisplayFont(2);
-    return width;
-}
-
-void removeLastUtf8Glyph(String& text) {
-    if (text.length() == 0) {
-        return;
-    }
-
-    int index = text.length() - 1;
-    while (index > 0 && (static_cast<uint8_t>(text[index]) & 0xC0) == 0x80) {
-        index--;
-    }
-    text.remove(index);
-}
-
-String fitTextMixedChinese(String text, int maxWidth) {
-    if (!useChineseDisplay) {
-        return fitText(text, maxWidth);
-    }
-
-    if (textWidthMixedChinese(text) <= maxWidth) {
-        return text;
-    }
-
-    while (text.length() > 0 && textWidthMixedChinese(text + "...") > maxWidth) {
-        removeLastUtf8Glyph(text);
-    }
-    return text + "...";
-}
-
-void drawStringMixedChinese(String text, int x, int y) {
-    if (!useChineseDisplay) {
-        canvas.drawString(text, x, y);
-        return;
-    }
-
-    int cursorX = x;
-    int index = 0;
-    String glyph;
-    uint32_t codepoint;
-    while (readNextUtf8Glyph(text, index, glyph, codepoint)) {
-        canvas.setFont(fontForGlyph(codepoint));
-        canvas.setTextSize(1);
-        canvas.drawString(glyph, cursorX, y);
-        cursorX += canvas.textWidth(glyph);
-    }
-    useDisplayFont(2);
-}
-
 void drawCalendarEvents(int x, int y, int dx, int dy) {
     canvas.setTextDatum(TL_DATUM);
     useDisplayFont(2);
 
     if (!calendarFetchOk) {
-        canvas.drawString(labelText("Calendar sync failed", "日曆同步失敗", "日历同步失败"), x + 14, y + 20);
+        canvas.drawString("Calendar sync failed", x + 14, y + 20);
         if (calendarStatusMessage.length() > 0) {
             canvas.drawString(fitText(calendarStatusMessage, dx - 28), x + 14, y + 52);
         }
@@ -660,14 +483,14 @@ void drawCalendarEvents(int x, int y, int dx, int dy) {
     }
 
     if (calendarEventCount == 0) {
-        canvas.drawString(labelText("No events today", "今日暫無行程", "今日暂无行程"), x + 14, y + 20);
+        canvas.drawString("No events today", x + 14, y + 20);
         return;
     }
 
     int lineY = y + 14;
     int maxTextWidth = dx - 28;
     for (int i = 0; i < calendarEventCount; i++) {
-        drawStringMixedChinese(fitTextMixedChinese(calendarEvents[i], maxTextWidth), x + 14, lineY);
+        canvas.drawString(fitText(calendarEvents[i], maxTextWidth), x + 14, lineY);
         lineY += 32;
     }
 }
@@ -721,7 +544,7 @@ void drawWindInfo(int x, int y, int dx, int dy) {
 void drawM5PaperInfo(int x, int y, int dx, int dy) {
     canvas.setTextSize(3);
     canvas.setTextDatum(TC_DATUM);
-    canvas.drawString("M5Paper S3", x + dx / 2, y + 7);
+    canvas.drawString("M5Paper", x + dx / 2, y + 7);
     canvas.setTextDatum(TL_DATUM);
     canvas.drawLine(x, y + PANEL_TITLE_HEIGHT, x + dx, y + PANEL_TITLE_HEIGHT, TFT_BLACK);
 
@@ -762,6 +585,7 @@ void drawM5PaperInfo(int x, int y, int dx, int dy) {
 void displayWeather() {
     M5.Display.startWrite();
 
+    canvas.setColorDepth(8);
     if (!canvas.createSprite(SCREEN_WIDTH, SCREEN_HEIGHT)) {
         Serial.println("ERROR: Failed to allocate canvas memory!");
         M5.Display.endWrite();
@@ -800,24 +624,7 @@ void displayWeather() {
 
     // Draw config button indicator
     useDisplayFont(1);
-    canvas.drawString(labelText("[CFG]", "[設定]", "[设置]"), SCREEN_WIDTH - (useChineseDisplay ? 62 : 50), SCREEN_HEIGHT - 20);
-
-    // Draw language toggle indicator
-    canvas.setTextDatum(TL_DATUM);
-    if (useChineseDisplay) {
-        if (useTraditionalChinese) {
-            canvas.setFont(&fonts::efontCN_24);
-            canvas.setTextSize(1);
-            canvas.drawString("[简中]", 20, SCREEN_HEIGHT - 20);
-        } else {
-            useDefaultFont(1);
-            canvas.drawString("[EN]", 20, SCREEN_HEIGHT - 20);
-        }
-    } else {
-        canvas.setFont(&fonts::efontTW_24);
-        canvas.setTextSize(1);
-        canvas.drawString("[繁中]", 20, SCREEN_HEIGHT - 20);
-    }
+    canvas.drawString("[CFG]", SCREEN_WIDTH - 50, SCREEN_HEIGHT - 20);
 
     // Draw main border
     canvas.drawRect(PANEL_BORDER, HEADER_HEIGHT, SCREEN_WIDTH - 28, SCREEN_HEIGHT - 43, TFT_BLACK);
@@ -835,14 +642,14 @@ void displayWeather() {
     canvas.drawRect(contentX, currentY, contentW, currentH, TFT_BLACK);
     canvas.setTextDatum(TL_DATUM);
     useDisplayFont(2);
-    canvas.drawString(labelText("Current Weather", "目前天氣", "当前天气"), contentX + 12, currentY + 10);
+    canvas.drawString("Current Weather", contentX + 12, currentY + 10);
     canvas.drawLine(contentX, currentY + PANEL_TITLE_HEIGHT, contentX + contentW, currentY + PANEL_TITLE_HEIGHT, TFT_BLACK);
     drawCurrentConditions(contentX, currentY, contentW, currentH);
 
     // Draw next 8 hours panel
     canvas.drawRect(contentX, hourlyY, contentW, hourlyH, TFT_BLACK);
     useDisplayFont(2);
-    canvas.drawString(labelText("Next 8 Hours", "未來八小時", "未来八小时"), contentX + 12, hourlyY + 10);
+    canvas.drawString("Next 8 Hours", contentX + 12, hourlyY + 10);
     canvas.drawLine(contentX, hourlyY + PANEL_TITLE_HEIGHT, contentX + contentW, hourlyY + PANEL_TITLE_HEIGHT, TFT_BLACK);
     int hourlyCellW = contentW / MAX_HOURLY;
     for (int i = 0; i < MAX_HOURLY; i++) {
@@ -860,7 +667,7 @@ void displayWeather() {
 
     canvas.drawRect(contentX, dailyY, forecastW, dailyH, TFT_BLACK);
     useDisplayFont(2);
-    canvas.drawString(labelText("Next 3 Days", "未來三天", "未来三天"), contentX + 12, dailyY + 10);
+    canvas.drawString("Next 3 Days", contentX + 12, dailyY + 10);
     canvas.drawLine(contentX, dailyY + PANEL_TITLE_HEIGHT, contentX + forecastW, dailyY + PANEL_TITLE_HEIGHT, TFT_BLACK);
     int dailyCellW = forecastW / 3;
     for (int i = 0; i < 3; i++) {
@@ -873,7 +680,7 @@ void displayWeather() {
 
     canvas.drawRect(calendarX, dailyY, calendarW, dailyH, TFT_BLACK);
     useDisplayFont(2);
-    canvas.drawString(labelText("Google Calendar", "Google 行程"), calendarX + 12, dailyY + 10);
+    canvas.drawString("Google Calendar", calendarX + 12, dailyY + 10);
     canvas.drawLine(calendarX, dailyY + PANEL_TITLE_HEIGHT, calendarX + calendarW, dailyY + PANEL_TITLE_HEIGHT, TFT_BLACK);
     drawCalendarEvents(calendarX, dailyY + PANEL_TITLE_HEIGHT, calendarW, dailyH - PANEL_TITLE_HEIGHT);
 

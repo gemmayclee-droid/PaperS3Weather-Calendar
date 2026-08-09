@@ -9,8 +9,6 @@
 extern Preferences preferences;
 extern bool useCelsius;
 extern bool nightModeSleep;
-extern bool useChineseDisplay;
-extern bool useTraditionalChinese;
 extern String cityName;
 
 static String htmlEscape(String value) {
@@ -19,35 +17,6 @@ static String htmlEscape(String value) {
     value.replace("<", "&lt;");
     value.replace(">", "&gt;");
     return value;
-}
-
-static bool isTraditionalDisplayLang(const String &displayLang) {
-    return displayLang == "zh" || displayLang == "zh_tw";
-}
-
-static bool isSimplifiedDisplayLang(const String &displayLang) {
-    return displayLang == "zh_cn";
-}
-
-static String displayLanguageName(const String &displayLang) {
-    if (isSimplifiedDisplayLang(displayLang)) {
-        return "简体中文";
-    }
-    if (isTraditionalDisplayLang(displayLang)) {
-        return "繁體中文";
-    }
-    return "English";
-}
-
-static String normalizeDisplayLanguage(String displayLang) {
-    displayLang.trim();
-    if (displayLang == "zh_cn") {
-        return "zh_cn";
-    }
-    if (displayLang == "zh" || displayLang == "zh_tw") {
-        return "zh";
-    }
-    return "en";
 }
 
 void setupWiFi() {
@@ -86,7 +55,6 @@ void setupWiFi() {
         Serial.println("All WiFi connection attempts failed");
     }
 
-    // No saved credentials or all attempts failed
     startConfigPortal();
 }
 
@@ -108,7 +76,6 @@ void startConfigPortal() {
     WebServer server(80);
 
     server.on("/", HTTP_GET, [&server]() {
-        // Load current settings including WiFi credentials
         preferences.begin("weather", true);
         String currentSSID = preferences.getString("ssid", "");
         String currentPassword = preferences.getString("password", "");
@@ -117,7 +84,6 @@ void startConfigPortal() {
         String currentLon = preferences.getString("longitude", "");
         String currentUnit = preferences.getString("tempunit", "F");
         String currentCalendarIcs = preferences.getString("calendar_ics", "");
-        String currentDisplayLang = preferences.getString("display_lang", "en");
         bool currentNightMode = preferences.getBool("nightmode", true);
         int currentDayInterval = preferences.getInt("day_interval", 10);
         int currentNightInterval = preferences.getInt("night_interval", 60);
@@ -173,7 +139,6 @@ void startConfigPortal() {
         html += "<div class='card'>";
         html += "<h1>" + String(APP_NAME) + " Setup</h1>";
 
-        // Show current settings
         if (currentCity.length() > 0) {
             html += "<div class='current'><strong>Current Settings:</strong><br>";
             html += "Location: " + currentCity;
@@ -181,7 +146,6 @@ void startConfigPortal() {
                 html += " (" + currentLat + ", " + currentLon + ")";
             }
             html += "<br>Temperature: " + String(currentUnit == "C" ? "Celsius" : "Fahrenheit");
-            html += "<br>Display Language: " + displayLanguageName(currentDisplayLang);
             html += "<br>Updates: " + String(currentDayInterval) + " min (day), " + String(currentNightInterval) + " min (night)";
             html += "<br>Calendar: " + String(currentCalendarIcs.length() > 0 ? "ON" : "OFF");
             html += "<br>Night Mode: " + String(currentNightMode ? "ON" : "OFF");
@@ -193,7 +157,6 @@ void startConfigPortal() {
 
         html += "<form name='config' action='/save' method='POST' onsubmit='return validateForm()'>";
 
-        // WiFi Section
         html += "<div class='section'>";
         html += "<h3>WiFi Connection</h3>";
         html += "<label>Network Name (SSID):</label>";
@@ -206,7 +169,6 @@ void startConfigPortal() {
         }
         html += "</div>";
 
-        // Location Section
         html += "<div class='section'>";
         html += "<h3>Location</h3>";
         html += "<label>City Name:</label>";
@@ -218,7 +180,6 @@ void startConfigPortal() {
         html += "<div class='note'>Leave blank to auto-lookup from city name</div>";
         html += "</div>";
 
-        // Calendar Section
         html += "<div class='section'>";
         html += "<h3>Google Calendar</h3>";
         html += "<label>ICS URL:</label>";
@@ -226,7 +187,6 @@ void startConfigPortal() {
         html += "<div class='help'>For private Google calendars, paste the Secret address in iCal format from Settings > Integrate calendar. It should contain /calendar/ical/ and end with /basic.ics. HTTP 404 means the URL is not a valid accessible ICS feed.</div>";
         html += "</div>";
 
-        // Display Preferences
         html += "<div class='section'>";
         html += "<h3>Display Preferences</h3>";
         html += "<label>Temperature Unit:</label>";
@@ -234,16 +194,8 @@ void startConfigPortal() {
         html += "<option value='F'" + String(currentUnit == "F" ? " selected" : "") + ">Fahrenheit</option>";
         html += "<option value='C'" + String(currentUnit == "C" ? " selected" : "") + ">Celsius</option>";
         html += "</select>";
-        html += "<label>Display Language:</label>";
-        html += "<select name='display_lang'>";
-        html += "<option value='en'" + String(!isTraditionalDisplayLang(currentDisplayLang) && !isSimplifiedDisplayLang(currentDisplayLang) ? " selected" : "") + ">English</option>";
-        html += "<option value='zh_cn'" + String(isSimplifiedDisplayLang(currentDisplayLang) ? " selected" : "") + ">简体中文</option>";
-        html += "<option value='zh'" + String(isTraditionalDisplayLang(currentDisplayLang) ? " selected" : "") + ">繁體中文</option>";
-        html += "</select>";
-        html += "<div class='help'>English is the default. Simplified and Traditional Chinese display use the built-in M5GFX Chinese font.</div>";
         html += "</div>";
 
-        // Update Schedule
         html += "<div class='section'>";
         html += "<h3>Update Schedule</h3>";
         html += "<label>Day Time Refresh (minutes):</label>";
@@ -254,7 +206,6 @@ void startConfigPortal() {
         html += "<div class='help'>How often to update at night (15-240 minutes)<br>Longer interval saves battery while you sleep</div>";
         html += "</div>";
 
-        // Night Mode
         html += "<div class='section'>";
         html += "<h3>Night Mode</h3>";
         html += "<label><input type='checkbox' name='nightmode' value='1'" + String(currentNightMode ? " checked" : "") + "> Enable Night Mode</label>";
@@ -283,7 +234,6 @@ void startConfigPortal() {
         String lon = server.arg("lon");
         String calendarIcs = server.arg("calendar_ics");
         String tempUnit = server.arg("tempunit");
-        String displayLang = server.arg("display_lang");
         bool nightMode = server.arg("nightmode") == "1";
         int dayInterval = server.arg("day_interval").toInt();
         int nightInterval = server.arg("night_interval").toInt();
@@ -304,7 +254,6 @@ void startConfigPortal() {
             return;
         }
 
-        // Validate refresh intervals
         if (dayInterval < 5 || dayInterval > 120) {
             server.send(400, "text/html",
                 "<html><body><h1>Error</h1><p>Day refresh interval must be 5-120 minutes!</p>"
@@ -319,7 +268,6 @@ void startConfigPortal() {
             return;
         }
 
-        // Validate night mode hours
         if (nightStart < 0 || nightStart > 23 || nightEnd < 0 || nightEnd > 23) {
             server.send(400, "text/html",
                 "<html><body><h1>Error</h1><p>Night hours must be 0-23!</p>"
@@ -339,13 +287,11 @@ void startConfigPortal() {
             }
         }
 
-        // Save preferences
         preferences.begin("weather", false);
         preferences.putString("ssid", ssid);
         preferences.putString("password", password);
         preferences.putString("city", city);
         preferences.putString("tempunit", tempUnit);
-        preferences.putString("display_lang", normalizeDisplayLanguage(displayLang));
         preferences.putString("calendar_ics", calendarIcs);
         preferences.putBool("nightmode", nightMode);
         preferences.putInt("day_interval", dayInterval);
@@ -357,7 +303,6 @@ void startConfigPortal() {
             preferences.putString("latitude", lat);
             preferences.putString("longitude", lon);
         } else {
-            // Clear coordinates so they'll be geocoded
             preferences.putString("latitude", String(COORD_NOT_SET));
             preferences.putString("longitude", String(COORD_NOT_SET));
         }
@@ -378,6 +323,7 @@ void startConfigPortal() {
     while (true) {
         server.handleClient();
         M5.update();
+        // Rotary up (BtnA) exits config portal
         if (M5.BtnA.wasPressed()) break;
         delay(10);
     }
@@ -392,33 +338,12 @@ void loadPreferences(float &latitude, float &longitude, String &cityName) {
     String lonStr = preferences.getString("longitude", String(COORD_NOT_SET));
     cityName = preferences.getString("city", DEFAULT_CITY);
     String tempUnit = preferences.getString("tempunit", "F");
-    String displayLang = preferences.getString("display_lang", "en");
     useCelsius = (tempUnit == "C");
-    displayLang = normalizeDisplayLanguage(displayLang);
-    useChineseDisplay = (displayLang == "zh" || displayLang == "zh_cn");
-    useTraditionalChinese = (displayLang != "zh_cn");
     nightModeSleep = preferences.getBool("nightmode", true);
     preferences.end();
 
     latitude = latStr.toFloat();
     longitude = lonStr.toFloat();
-
-    if (useChineseDisplay) {
-        String localizedCityName = "";
-        float lookupLat = latitude;
-        float lookupLon = longitude;
-        if (geocodeCity(cityName, lookupLat, lookupLon, &localizedCityName) && localizedCityName.length() > 0) {
-            cityName = localizedCityName;
-            if (latitude == COORD_NOT_SET || longitude == COORD_NOT_SET) {
-                latitude = lookupLat;
-                longitude = lookupLon;
-                preferences.begin("weather", false);
-                preferences.putString("latitude", String(latitude, 4));
-                preferences.putString("longitude", String(longitude, 4));
-                preferences.end();
-            }
-        }
-    }
 
     if (latitude == COORD_NOT_SET || longitude == COORD_NOT_SET) {
         Serial.println("No coordinates found, geocoding city: " + cityName);
@@ -441,6 +366,4 @@ void loadPreferences(float &latitude, float &longitude, String &cityName) {
 
     Serial.printf("Using coordinates: %.4f, %.4f (%s)\n", latitude, longitude, cityName.c_str());
     Serial.printf("Temperature unit: %s\n", useCelsius ? "Celsius" : "Fahrenheit");
-    Serial.printf("Display language: %s\n",
-                  !useChineseDisplay ? "English" : (useTraditionalChinese ? "Traditional Chinese" : "Simplified Chinese"));
 }

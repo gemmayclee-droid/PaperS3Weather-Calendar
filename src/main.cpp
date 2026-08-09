@@ -1,16 +1,14 @@
 /*
-   Adapted from Bastelschlumpf/M5PaperWeather for M5Paper S3
-   Modified to use M5Unified instead of M5EPD
-   Uses Open-Meteo API instead of OpenWeatherMap
+   Adapted from Bastelschlumpf/M5PaperWeather for M5Paper v1.1
+   Uses M5Unified + M5GFX, Open-Meteo API, English UI only
 
-   Version 1.12 - Refactored for better modularity and performance
+   Version 1.0 - M5Paper v1.1 English-only port
 */
 
 #include <M5Unified.h>
 #include <WiFi.h>
 #include <Preferences.h>
 
-// Include all our new modular headers
 #include "constants.h"
 #include "utils.h"
 #include "weather_api.h"
@@ -18,55 +16,16 @@
 #include "config.h"
 #include "display.h"
 
-// Global objects
 Preferences preferences;
 M5Canvas canvas(&M5.Display);
 WeatherData currentWeather;
 
-// Configuration state
 bool useCelsius = false;
 bool nightModeSleep = true;
-bool useChineseDisplay = false;
-bool useTraditionalChinese = true;
 String cityName = DEFAULT_CITY;
 
-// Runtime state
 unsigned long lastRefreshTime = 0;
 int refreshCounter = 0;
-
-void toggleDisplayLanguage() {
-    String displayLang = "en";
-
-    if (!useChineseDisplay) {
-        displayLang = "zh";
-        useChineseDisplay = true;
-        useTraditionalChinese = true;
-    } else if (useTraditionalChinese) {
-        displayLang = "zh_cn";
-        useChineseDisplay = true;
-        useTraditionalChinese = false;
-    } else {
-        displayLang = "en";
-        useChineseDisplay = false;
-        useTraditionalChinese = true;
-    }
-
-    preferences.begin("weather", false);
-    preferences.putString("display_lang", displayLang);
-    preferences.end();
-
-    Serial.printf("Display language switched to: %s\n",
-                  !useChineseDisplay ? "English" : (useTraditionalChinese ? "Traditional Chinese" : "Simplified Chinese"));
-
-    if (WiFi.status() == WL_CONNECTED) {
-        float latitude, longitude;
-        loadPreferences(latitude, longitude, cityName);
-    } else {
-        cityName = localizeCityName(cityName);
-    }
-
-    displayWeather();
-}
 
 void enterDeepSleep(unsigned long sleepTimeMs) {
     Serial.printf("Entering deep sleep for %lu ms (%lu minutes)\n",
@@ -75,24 +34,18 @@ void enterDeepSleep(unsigned long sleepTimeMs) {
     WiFi.disconnect(true);
     WiFi.mode(WIFI_OFF);
 
-    // Put IMU to sleep to reduce standby power draw
-    M5.Imu.init();
-    M5.Imu.sleep();
-
-    // Put display to sleep and wait for it to finish
     M5.Display.sleep();
     M5.Display.waitDisplay();
     delay(200);
 
-    // Flush serial before sleep
     Serial.flush();
 
-    // Use RTC alarm + M5.Power.powerOff() for lowest power consumption
-    // This performs a more comprehensive power-down than esp_deep_sleep_start()
     int sleepSeconds = sleepTimeMs / 1000;
-    M5.Rtc.clearIRQ();
-    M5.Rtc.setAlarmIRQ(sleepSeconds);
-    M5.Power.powerOff();
+    if (sleepSeconds < 1) {
+        sleepSeconds = 1;
+    }
+    // timerSleep sets the RTC alarm and powers down (battery only; USB may keep device on)
+    M5.Power.timerSleep(sleepSeconds);
 }
 
 void setup() {
@@ -100,7 +53,6 @@ void setup() {
     M5.Display.begin();
     Serial.begin(115200);
 
-    // Small delay to ensure display is fully initialized after wake
     delay(100);
 
     Serial.println("\n=================================");
@@ -108,13 +60,12 @@ void setup() {
     Serial.println("Based on Bastelschlumpf design");
     Serial.println("=================================");
 
-    // Reinitialize canvas after M5.Display is ready
-    // This fixes the automatic wake display issue
-    canvas.setColorDepth(16);
-    canvas.createSprite(1, 1);  // Create minimal sprite to initialize
-    canvas.deleteSprite();       // Clean up
+    initOnboardSensors();
 
-    // Configure display
+    canvas.setColorDepth(8);
+    canvas.createSprite(1, 1);
+    canvas.deleteSprite();
+
     M5.Display.setRotation(1);
     M5.Display.startWrite();
     M5.Display.fillScreen(TFT_WHITE);
@@ -157,10 +108,8 @@ void setup() {
         ESP.restart();
     }
 
-    // Set system time: use RTC if it has a valid date, otherwise fall back to NTP
     setupTime();
 
-    // Load preferences and fetch weather
     if (WiFi.status() == WL_CONNECTED) {
         float latitude, longitude;
         loadPreferences(latitude, longitude, cityName);
@@ -198,7 +147,6 @@ void setup() {
             M5.Display.println("Will retry in 1 minute");
             M5.Display.endWrite();
             M5.Display.display();
-            // Retry sooner on failure
             lastRefreshTime = millis() - REFRESH_INTERVAL_DAY_MS + 60000;
         }
     } else {
@@ -218,42 +166,27 @@ void setup() {
 void loop() {
     static bool hasWaited = false;
 
-    // Check WHY we woke up - only show interaction window on manual reset
     if (!hasWaited) {
         esp_sleep_wakeup_cause_t wakeup_reason = esp_sleep_get_wakeup_cause();
 
-        // ESP_SLEEP_WAKEUP_UNDEFINED means: power on or reset button pressed
-        // ESP_SLEEP_WAKEUP_TIMER means: automatic wake from deep sleep
         if (wakeup_reason == ESP_SLEEP_WAKEUP_UNDEFINED) {
-            // Manual reset/power on - give user time to interact
             Serial.println("\n*** Manual wake detected (reset button or power on) ***");
             Serial.println("*** Waiting 30 seconds for user interaction ***");
             Serial.println("*** Tap bottom-right corner of screen for CONFIG ***");
-            Serial.println("*** Tap bottom-left corner of screen to switch language ***");
 
             unsigned long startWait = millis();
             const unsigned long waitDuration = USER_INTERACTION_TIMEOUT_MS;
             unsigned long lastSerialUpdate = 0;
 
             while (millis() - startWait < waitDuration) {
-                M5.update();  // Update touch state
+                M5.update();
 
-                // Check for touch in bottom-right corner (CFG button area)
                 auto touch = M5.Touch.getDetail();
                 if (touch.wasPressed()) {
                     int touchX = touch.x;
                     int touchY = touch.y;
 
-                    // Check if touch is in language toggle area (bottom-left corner)
-                    if (touchX < LANG_BUTTON_TOUCH_WIDTH &&
-                        touchY > (SCREEN_HEIGHT - LANG_BUTTON_TOUCH_HEIGHT)) {
-                        Serial.println("\n*** LANGUAGE button pressed! ***");
-                        toggleDisplayLanguage();
-                        startWait = millis();
-                    }
-
-                    // Check if touch is in CFG area (bottom-right corner)
-                    else if (touchX > (SCREEN_WIDTH - CFG_BUTTON_TOUCH_WIDTH) &&
+                    if (touchX > (SCREEN_WIDTH - CFG_BUTTON_TOUCH_WIDTH) &&
                         touchY > (SCREEN_HEIGHT - CFG_BUTTON_TOUCH_HEIGHT)) {
                         Serial.println("\n*** CONFIG button pressed! ***");
                         M5.Display.startWrite();
@@ -268,31 +201,25 @@ void loop() {
                         M5.Display.endWrite();
                         M5.Display.display();
 
-                        // Disconnect from WiFi and start config portal
                         WiFi.disconnect();
                         delay(500);
                         startConfigPortal();
-
-                        // After config, restart
                         ESP.restart();
                     }
                 }
 
-                // Update serial countdown every second
                 unsigned long remaining = (waitDuration - (millis() - startWait)) / 1000;
                 if (millis() - lastSerialUpdate >= 1000) {
                     Serial.printf("Waiting for config tap... %lu seconds remaining\n", remaining);
                     lastSerialUpdate = millis();
                 }
 
-                delay(100);  // Small delay to reduce CPU usage
+                delay(100);
             }
 
             Serial.println("*** Wait period ended, entering sleep mode ***\n");
         } else {
-            // Automatic wake from timer - skip interaction window
             Serial.println("\n*** Automatic wake from timer - skipping interaction window ***");
-            // Give e-ink display time to complete refresh before sleeping
             Serial.println("*** Waiting 3 seconds for display to refresh ***");
             delay(3000);
         }
@@ -302,7 +229,6 @@ void loop() {
 
     unsigned long sleepTime = getRefreshInterval();
 
-    // Get current settings for display
     preferences.begin("weather", true);
     int nightStart = preferences.getInt("night_start", 22);
     int nightEnd = preferences.getInt("night_end", 5);

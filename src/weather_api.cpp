@@ -5,7 +5,6 @@
 #include <ArduinoJson.h>
 
 extern bool useCelsius;
-extern bool useChineseDisplay;
 extern WeatherData currentWeather;
 
 static int findHourlyIndex(JsonArray hourlyTime, const String &currentTime) {
@@ -191,9 +190,7 @@ bool geocodeCity(String cityName, float &latitude, float &longitude, String *res
     HTTPClient http;
     String url = "https://geocoding-api.open-meteo.com/v1/search?name=";
     url += urlEncode(cityName);
-    url += "&count=1&language=";
-    url += useChineseDisplay ? "zh" : "en";
-    url += "&format=json";
+    url += "&count=1&language=en&format=json";
 
     Serial.println("Geocoding city: " + cityName);
 
@@ -221,7 +218,7 @@ bool geocodeCity(String cityName, float &latitude, float &longitude, String *res
                 String foundCity = doc["results"][0]["name"].as<String>();
                 String country = doc["results"][0]["country"].as<String>();
                 if (resolvedName != nullptr && foundCity.length() > 0) {
-                    *resolvedName = localizeCityName(foundCity);
+                    *resolvedName = foundCity;
                 }
 
                 Serial.printf("Found: %s, %s at %.4f, %.4f\n",

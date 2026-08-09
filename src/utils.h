@@ -62,16 +62,13 @@ float getMoonPhase();
 bool isNightTime();
 unsigned long getRefreshInterval();
 
-// Sensor reading
+// Sensor reading (onboard SHT30)
+void initOnboardSensors();
 float readInternalTemperature();
 float readInternalHumidity();
 
 // URL encoding
 String urlEncode(String str);
-
-// Display language text conversion
-String localizeDisplayText(String text);
-String localizeCityName(String text);
 
 // Drawing helpers (to reduce duplication)
 void drawDegreeSymbol(int x, int y, int radius);
