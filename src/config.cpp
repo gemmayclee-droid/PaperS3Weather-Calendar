@@ -1,5 +1,6 @@
 #include "config.h"
 #include "constants.h"
+#include "utils.h"
 #include "weather_api.h"
 #include <M5Unified.h>
 #include <WiFi.h>
@@ -27,6 +28,19 @@ static String normalizeCalendarMode(String mode) {
         return "google";
     }
     return DEFAULT_CALENDAR_MODE;
+}
+
+static String refreshIntervalOptionsHtml(int selected) {
+    const int opts[] = {1, 5, 10, 15, 30, 60, 120, 240, 480};
+    String html = "";
+    for (unsigned i = 0; i < sizeof(opts) / sizeof(opts[0]); i++) {
+        html += "<option value='" + String(opts[i]) + "'";
+        if (opts[i] == selected) {
+            html += " selected";
+        }
+        html += ">" + String(opts[i]) + " min</option>";
+    }
+    return html;
 }
 
 void setupWiFi() {
@@ -97,8 +111,20 @@ void startConfigPortal() {
         String currentCalendarMode = normalizeCalendarMode(
             preferences.getString("calendar_mode", DEFAULT_CALENDAR_MODE));
         bool currentNightMode = preferences.getBool("nightmode", true);
-        int currentDayInterval = preferences.getInt("day_interval", 10);
-        int currentNightInterval = preferences.getInt("night_interval", 60);
+        int face0Day = preferences.getInt("face0_day", -1);
+        int face0Night = preferences.getInt("face0_night", -1);
+        int face1Day = preferences.getInt("face1_day", DEFAULT_FACE1_DAY_MIN);
+        int face1Night = preferences.getInt("face1_night", DEFAULT_FACE1_NIGHT_MIN);
+        if (face0Day < 0) {
+            face0Day = preferences.getInt("day_interval", DEFAULT_FACE0_DAY_MIN);
+        }
+        if (face0Night < 0) {
+            face0Night = preferences.getInt("night_interval", DEFAULT_FACE0_NIGHT_MIN);
+        }
+        face0Day = normalizeRefreshMinutes(face0Day, DEFAULT_FACE0_DAY_MIN);
+        face0Night = normalizeRefreshMinutes(face0Night, DEFAULT_FACE0_NIGHT_MIN);
+        face1Day = normalizeRefreshMinutes(face1Day, DEFAULT_FACE1_DAY_MIN);
+        face1Night = normalizeRefreshMinutes(face1Night, DEFAULT_FACE1_NIGHT_MIN);
         int currentNightStart = preferences.getInt("night_start", 22);
         int currentNightEnd = preferences.getInt("night_end", 5);
         preferences.end();
@@ -143,15 +169,11 @@ void startConfigPortal() {
         html += "  var city=document.forms['config']['city'].value;";
         html += "  var mode=document.forms['config']['calendar_mode'].value;";
         html += "  var calendar=document.forms['config']['calendar_ics'].value;";
-        html += "  var dayInt=parseInt(document.forms['config']['day_interval'].value);";
-        html += "  var nightInt=parseInt(document.forms['config']['night_interval'].value);";
         html += "  var nightStart=parseInt(document.forms['config']['night_start'].value);";
         html += "  var nightEnd=parseInt(document.forms['config']['night_end'].value);";
         html += "  if(ssid==''){alert('WiFi SSID is required');return false;}";
         html += "  if(city==''){alert('City name is required');return false;}";
         html += "  if(mode==='google'&&calendar==''){alert('Google Calendar ICS URL is required');return false;}";
-        html += "  if(dayInt<5||dayInt>120){alert('Day refresh must be 5-120 minutes');return false;}";
-        html += "  if(nightInt<15||nightInt>240){alert('Night refresh must be 15-240 minutes');return false;}";
         html += "  if(nightStart<0||nightStart>23){alert('Night start hour must be 0-23');return false;}";
         html += "  if(nightEnd<0||nightEnd>23){alert('Night end hour must be 0-23');return false;}";
         html += "  return true;";
@@ -170,7 +192,8 @@ void startConfigPortal() {
                 html += " (" + currentLat + ", " + currentLon + ")";
             }
             html += "<br>Temperature: " + String(currentUnit == "C" ? "Celsius" : "Fahrenheit");
-            html += "<br>Updates: " + String(currentDayInterval) + " min (day), " + String(currentNightInterval) + " min (night)";
+            html += "<br>Weather face: " + String(face0Day) + " / " + String(face0Night) + " min (day/night)";
+            html += "<br>Clock face: " + String(face1Day) + " / " + String(face1Night) + " min (day/night)";
             html += "<br>Calendar: " + String(modeIsGoogle ? "Google Calendar" : "Month Calendar");
             html += "<br>Night Mode: " + String(currentNightMode ? "ON" : "OFF");
             if (currentNightMode) {
@@ -230,18 +253,21 @@ void startConfigPortal() {
 
         html += "<div class='section'>";
         html += "<h3>Update Schedule</h3>";
-        html += "<label>Day Time Refresh (minutes):</label>";
-        html += "<input type='number' name='day_interval' value='" + String(currentDayInterval) + "' min='5' max='120' required>";
-        html += "<div class='help'>How often to update during the day (5-120 minutes)<br>Lower = more updates, more battery use</div>";
-        html += "<label>Night Time Refresh (minutes):</label>";
-        html += "<input type='number' name='night_interval' value='" + String(currentNightInterval) + "' min='15' max='240' required>";
-        html += "<div class='help'>How often to update at night (15-240 minutes)<br>Longer interval saves battery while you sleep</div>";
+        html += "<div class='help'>Each face has its own day/night refresh interval. Clock face can update every 1 minute; weather data on the clock face is only re-fetched using the weather-face interval.</div>";
+        html += "<label>Weather face — day:</label>";
+        html += "<select name='face0_day'>" + refreshIntervalOptionsHtml(face0Day) + "</select>";
+        html += "<label>Weather face — night:</label>";
+        html += "<select name='face0_night'>" + refreshIntervalOptionsHtml(face0Night) + "</select>";
+        html += "<label>Clock face — day:</label>";
+        html += "<select name='face1_day'>" + refreshIntervalOptionsHtml(face1Day) + "</select>";
+        html += "<label>Clock face — night:</label>";
+        html += "<select name='face1_night'>" + refreshIntervalOptionsHtml(face1Night) + "</select>";
         html += "</div>";
 
         html += "<div class='section'>";
         html += "<h3>Night Mode</h3>";
         html += "<label><input type='checkbox' name='nightmode' value='1'" + String(currentNightMode ? " checked" : "") + "> Enable Night Mode</label>";
-        html += "<div class='help'>Reduces update frequency during night hours to save battery</div>";
+        html += "<div class='help'>When enabled, each face uses its night interval during the hours below</div>";
         html += "<div class='inline-group'>";
         html += "<label>Start:</label><input type='number' name='night_start' value='" + String(currentNightStart) + "' min='0' max='23' required>";
         html += "<label>End:</label><input type='number' name='night_end' value='" + String(currentNightEnd) + "' min='0' max='23' required>";
@@ -268,8 +294,10 @@ void startConfigPortal() {
         String calendarModeArg = normalizeCalendarMode(server.arg("calendar_mode"));
         String tempUnit = server.arg("tempunit");
         bool nightMode = server.arg("nightmode") == "1";
-        int dayInterval = server.arg("day_interval").toInt();
-        int nightInterval = server.arg("night_interval").toInt();
+        int face0Day = normalizeRefreshMinutes(server.arg("face0_day").toInt(), DEFAULT_FACE0_DAY_MIN);
+        int face0Night = normalizeRefreshMinutes(server.arg("face0_night").toInt(), DEFAULT_FACE0_NIGHT_MIN);
+        int face1Day = normalizeRefreshMinutes(server.arg("face1_day").toInt(), DEFAULT_FACE1_DAY_MIN);
+        int face1Night = normalizeRefreshMinutes(server.arg("face1_night").toInt(), DEFAULT_FACE1_NIGHT_MIN);
         int nightStart = server.arg("night_start").toInt();
         int nightEnd = server.arg("night_end").toInt();
 
@@ -283,20 +311,6 @@ void startConfigPortal() {
         if (calendarModeArg == "google" && calendarIcs.length() == 0) {
             server.send(400, "text/html",
                 "<html><body><h1>Error</h1><p>Google Calendar ICS URL is required!</p>"
-                "<a href='/'>Go Back</a></body></html>");
-            return;
-        }
-
-        if (dayInterval < 5 || dayInterval > 120) {
-            server.send(400, "text/html",
-                "<html><body><h1>Error</h1><p>Day refresh interval must be 5-120 minutes!</p>"
-                "<a href='/'>Go Back</a></body></html>");
-            return;
-        }
-
-        if (nightInterval < 15 || nightInterval > 240) {
-            server.send(400, "text/html",
-                "<html><body><h1>Error</h1><p>Night refresh interval must be 15-240 minutes!</p>"
                 "<a href='/'>Go Back</a></body></html>");
             return;
         }
@@ -328,8 +342,13 @@ void startConfigPortal() {
         preferences.putString("calendar_mode", calendarModeArg);
         preferences.putString("calendar_ics", calendarIcs);
         preferences.putBool("nightmode", nightMode);
-        preferences.putInt("day_interval", dayInterval);
-        preferences.putInt("night_interval", nightInterval);
+        preferences.putInt("face0_day", face0Day);
+        preferences.putInt("face0_night", face0Night);
+        preferences.putInt("face1_day", face1Day);
+        preferences.putInt("face1_night", face1Night);
+        // Keep legacy keys in sync for older code paths
+        preferences.putInt("day_interval", face0Day);
+        preferences.putInt("night_interval", face0Night);
         preferences.putInt("night_start", nightStart);
         preferences.putInt("night_end", nightEnd);
 

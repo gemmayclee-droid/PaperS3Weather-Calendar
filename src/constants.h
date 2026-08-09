@@ -3,7 +3,7 @@
 
 // App identity
 #define APP_NAME "PaperWeather-Calendar"
-#define VERSION "Version 1.0"
+#define VERSION "Version 1.1"
 
 // WiFi Configuration
 #define WIFI_TIMEOUT_MS 20000
@@ -15,11 +15,16 @@
 #define HTTP_RETRY_ATTEMPTS 3
 #define HTTP_RETRY_DELAY_MS 2000
 
-// Refresh Intervals
-#define REFRESH_INTERVAL_DAY_MS 600000      // 10 minutes (default)
-#define REFRESH_INTERVAL_NIGHT_MS 3600000   // 60 minutes (default)
+// Refresh Intervals (minutes) — per-face defaults
+#define DEFAULT_FACE0_DAY_MIN 10
+#define DEFAULT_FACE0_NIGHT_MIN 480
+#define DEFAULT_FACE1_DAY_MIN 1
+#define DEFAULT_FACE1_NIGHT_MIN 15
+#define REFRESH_INTERVAL_DAY_MS (DEFAULT_FACE0_DAY_MIN * 60000UL)
+#define REFRESH_INTERVAL_NIGHT_MS (DEFAULT_FACE0_NIGHT_MIN * 60000UL)
 #define NIGHT_START_HOUR 22
 #define NIGHT_END_HOUR 5
+#define CLOCK_PARTIAL_FULL_EVERY 30  // full Face 1 redraw every N clock-only updates (ghosting)
 
 // User Interaction
 #define USER_INTERACTION_TIMEOUT_MS 30000   // 30 seconds to tap screen before sleep
@@ -45,6 +50,17 @@
 #define MONTH_CAL_WEEK_ROWS 6
 #define MONTH_CAL_WEEK_COLS 7
 #define DEFAULT_CALENDAR_MODE "month"
+#define DEFAULT_DISPLAY_FACE 0
+
+// Face 1 (clock / calendar) layout
+#define FACE1_CONTENT_TOP HEADER_HEIGHT
+#define FACE1_MARGIN 14
+#define FACE1_GAP 12
+#define FACE1_LEFT_W 440
+#define FACE1_RIGHT_W (SCREEN_WIDTH - FACE1_MARGIN * 2 - FACE1_LEFT_W - FACE1_GAP)
+#define FACE1_TOP_H 180
+#define FACE1_BOTTOM_H (SCREEN_HEIGHT - FACE1_CONTENT_TOP - FACE1_MARGIN - FACE1_TOP_H - FACE1_GAP)
+#define FACE1_WEATHER_ICON_SIZE (WEATHER_ICON_SIZE * 4)  // 256px
 
 // Current Conditions Panel
 #define CURRENT_PANEL_SPACING 54

@@ -58,9 +58,17 @@ bool isDaytime(int hour);
 
 // Time and astronomical calculations
 void setupTime();
+void applyWeatherTimezone();
+void applyStoredTimezone();
 float getMoonPhase();
 bool isNightTime();
 unsigned long getRefreshInterval();
+int getFaceRefreshMinutes(int face, bool night);
+int normalizeRefreshMinutes(int value, int defaultMinutes);
+bool isWeatherFetchDue();
+String weatherDataSignature();
+void storeWeatherFetchState();
+bool weatherDataChangedSinceLastStore();
 
 // Calendar date helpers (prefer weather localDateYmd, else RTC/system time)
 bool resolveCalendarDate(int &year, int &month, int &day);
