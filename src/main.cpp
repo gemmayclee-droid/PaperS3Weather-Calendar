@@ -2,7 +2,7 @@
    Adapted from Bastelschlumpf/M5PaperWeather for M5Paper v1.1
    Uses M5Unified + M5GFX, Open-Meteo API, English UI only
 
-   Version 1.0 - M5Paper v1.1 English-only port
+   Version 1.1 - M5Paper v1.1 English-only port
 */
 
 #include <M5Unified.h>
@@ -24,16 +24,229 @@ bool useCelsius = false;
 bool nightModeSleep = true;
 String cityName = DEFAULT_CITY;
 String calendarMode = DEFAULT_CALENDAR_MODE;
+int displayFace = DEFAULT_DISPLAY_FACE;
 
 unsigned long lastRefreshTime = 0;
+String lastDataRefreshClock = "--:--";
 int refreshCounter = 0;
+
+static float cachedLat = DEFAULT_LATITUDE;
+static float cachedLon = DEFAULT_LONGITUDE;
+static bool haveCoords = false;
+
+static void captureDataRefreshClock() {
+    struct tm timeinfo;
+    if (getLocalTime(&timeinfo)) {
+        char buf[8];
+        sprintf(buf, "%02d:%02d", timeinfo.tm_hour, timeinfo.tm_min);
+        lastDataRefreshClock = String(buf);
+    }
+}
+
+static void loadDisplayFacePref() {
+    preferences.begin("weather", true);
+    displayFace = preferences.getInt("display_face", DEFAULT_DISPLAY_FACE);
+    preferences.end();
+    if (displayFace != 0 && displayFace != 1) {
+        displayFace = DEFAULT_DISPLAY_FACE;
+    }
+}
+
+static void saveDisplayFacePref() {
+    preferences.begin("weather", false);
+    preferences.putInt("display_face", displayFace);
+    preferences.end();
+}
+
+static void loadBasicPrefs() {
+    preferences.begin("weather", true);
+    String configuredCalendarMode = preferences.getString("calendar_mode", DEFAULT_CALENDAR_MODE);
+    displayFace = preferences.getInt("display_face", DEFAULT_DISPLAY_FACE);
+    cityName = preferences.getString("city", DEFAULT_CITY);
+    String tempUnit = preferences.getString("tempunit", "F");
+    nightModeSleep = preferences.getBool("nightmode", true);
+    preferences.end();
+
+    configuredCalendarMode.trim();
+    configuredCalendarMode.toLowerCase();
+    calendarMode = (configuredCalendarMode == "google") ? "google" : DEFAULT_CALENDAR_MODE;
+    if (displayFace != 0 && displayFace != 1) {
+        displayFace = DEFAULT_DISPLAY_FACE;
+    }
+    useCelsius = (tempUnit == "C");
+}
+
+static void cacheCoordinates() {
+    loadPreferences(cachedLat, cachedLon, cityName);
+    haveCoords = true;
+}
+
+static bool fetchWeatherOnce() {
+    if (!haveCoords) {
+        cacheCoordinates();
+    }
+
+    for (int retry = 0; retry < HTTP_RETRY_ATTEMPTS; retry++) {
+        if (retry > 0) {
+            delay(HTTP_RETRY_DELAY_MS);
+        }
+        if (fetchWeatherData(cachedLat, cachedLon)) {
+            if (calendarMode == "google") {
+                preferences.begin("weather", true);
+                String calendarIcsUrl = preferences.getString("calendar_ics", "");
+                preferences.end();
+                fetchCalendarData(calendarIcsUrl);
+            }
+            applyWeatherTimezone();
+            captureDataRefreshClock();
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool fetchAndShowFull() {
+    loadDisplayFacePref();
+    if (!haveCoords) {
+        cacheCoordinates();
+    }
+
+    Serial.printf("Fetching weather for: %.4f, %.4f (%s)\n",
+                  cachedLat, cachedLon, cityName.c_str());
+    Serial.printf("Display face: %d\n", displayFace);
+
+    if (fetchWeatherOnce()) {
+        Serial.println("Weather fetch successful!");
+        storeWeatherFetchState();
+        showActiveFace();
+        lastRefreshTime = millis();
+        return true;
+    }
+    return false;
+}
+
+static bool openConfigFromUi() {
+    Serial.println("\n*** CONFIG button pressed! ***");
+    M5.Display.startWrite();
+    M5.Display.fillScreen(TFT_WHITE);
+    M5.Display.setTextSize(2);
+    M5.Display.setCursor(20, 20);
+    M5.Display.println("Opening Configuration...");
+    M5.Display.println("\nConnect to:");
+    M5.Display.println("  " + String(CONFIG_AP_SSID));
+    M5.Display.println("Password: configure");
+    M5.Display.println("URL: 192.168.4.1");
+    M5.Display.endWrite();
+    M5.Display.display();
+
+    disconnectWiFi();
+    delay(500);
+    startConfigPortal();
+    ESP.restart();
+    return true;
+}
+
+static bool pollFaceControls() {
+    M5.update();
+
+    if (M5.BtnA.wasPressed() || M5.BtnC.wasPressed()) {
+        displayFace = (displayFace == 0) ? 1 : 0;
+        saveDisplayFacePref();
+        Serial.printf("*** Face toggled to %d ***\n", displayFace);
+        showActiveFace();
+        return true;
+    }
+
+    auto touch = M5.Touch.getDetail();
+    if (touch.wasPressed()) {
+        if (touch.x > (SCREEN_WIDTH - CFG_BUTTON_TOUCH_WIDTH) &&
+            touch.y > (SCREEN_HEIGHT - CFG_BUTTON_TOUCH_HEIGHT)) {
+            openConfigFromUi();
+        }
+    }
+    return false;
+}
+
+// Stay awake on clock face: minute partial clock updates, hourly WiFi weather refresh
+static void runClockFaceLoop() {
+    Serial.println("*** Clock face active — staying awake (no deep sleep) ***");
+    Serial.println("*** Clock panel updates each minute; weather via WiFi once per hour ***");
+
+    disconnectWiFi();
+
+    unsigned long lastWeatherMs = millis();
+    int partialCount = 0;
+    int lastDrawnMinute = -1;
+    struct tm timeinfo;
+    if (getLocalTime(&timeinfo)) {
+        lastDrawnMinute = timeinfo.tm_min;
+    }
+
+    while (displayFace == 1) {
+        pollFaceControls();
+        if (displayFace != 1) {
+            break;
+        }
+
+        if (getLocalTime(&timeinfo)) {
+            if (timeinfo.tm_min != lastDrawnMinute) {
+                lastDrawnMinute = timeinfo.tm_min;
+                Serial.printf("Clock tick %02d:%02d — partial update\n",
+                              timeinfo.tm_hour, timeinfo.tm_min);
+                updateClockFacePartial(false);
+                partialCount++;
+                if (partialCount >= CLOCK_PARTIAL_FULL_EVERY) {
+                    Serial.println("Periodic full Face 1 redraw (ghosting cleanup)");
+                    showActiveFace();
+                    partialCount = 0;
+                }
+            }
+        }
+
+        if (millis() - lastWeatherMs >= CLOCK_WEATHER_FETCH_MS) {
+            Serial.println("Hourly weather refresh — enabling WiFi");
+            lastWeatherMs = millis();
+            if (connectWiFiStation()) {
+                preferences.begin("weather", true);
+                String prevDate = preferences.getString("wx_date", "");
+                preferences.end();
+
+                if (fetchWeatherOnce()) {
+                    bool dateChanged = (currentWeather.localDateYmd.length() > 0 &&
+                                        currentWeather.localDateYmd != prevDate);
+                    bool weatherChanged = weatherDataChangedSinceLastStore();
+                    storeWeatherFetchState();
+
+                    if (dateChanged) {
+                        Serial.println("Date changed — full Face 1 redraw");
+                        showActiveFace();
+                        partialCount = 0;
+                    } else if (weatherChanged) {
+                        Serial.println("Weather changed — partial weather update");
+                        updateClockFacePartial(true);
+                    } else {
+                        Serial.println("Weather unchanged — clock header only");
+                        updateClockFacePartial(false);
+                    }
+                    lastDrawnMinute = -1;  // force next minute redraw with fresh header time
+                }
+            } else {
+                Serial.println("Hourly WiFi connect failed — keeping previous weather");
+            }
+            disconnectWiFi();
+        }
+
+        delay(CLOCK_LOOP_POLL_MS);
+    }
+
+    Serial.println("*** Left clock face — resuming normal sleep cycle ***");
+}
 
 void enterDeepSleep(unsigned long sleepTimeMs) {
     Serial.printf("Entering deep sleep for %lu ms (%lu minutes)\n",
                   sleepTimeMs, sleepTimeMs / 60000);
 
-    WiFi.disconnect(true);
-    WiFi.mode(WIFI_OFF);
+    disconnectWiFi();
 
     M5.Display.sleep();
     M5.Display.waitDisplay();
@@ -68,6 +281,10 @@ void setup() {
     canvas.deleteSprite();
 
     M5.Display.setRotation(1);
+    M5.Display.setEpdMode(epd_mode_t::epd_quality);
+
+    loadBasicPrefs();
+
     M5.Display.startWrite();
     M5.Display.fillScreen(TFT_WHITE);
     M5.Display.setTextColor(TFT_BLACK);
@@ -86,14 +303,7 @@ void setup() {
 
     preferences.begin("weather", true);
     String configuredCalendarIcs = preferences.getString("calendar_ics", "");
-    String configuredCalendarMode = preferences.getString("calendar_mode", DEFAULT_CALENDAR_MODE);
     preferences.end();
-    configuredCalendarMode.trim();
-    configuredCalendarMode.toLowerCase();
-    if (configuredCalendarMode != "google") {
-        configuredCalendarMode = DEFAULT_CALENDAR_MODE;
-    }
-    calendarMode = configuredCalendarMode;
 
     if (WiFi.status() == WL_CONNECTED &&
         calendarMode == "google" &&
@@ -112,7 +322,7 @@ void setup() {
         M5.Display.endWrite();
         M5.Display.display();
 
-        WiFi.disconnect();
+        disconnectWiFi();
         delay(500);
         startConfigPortal();
         ESP.restart();
@@ -121,35 +331,7 @@ void setup() {
     setupTime();
 
     if (WiFi.status() == WL_CONNECTED) {
-        float latitude, longitude;
-        loadPreferences(latitude, longitude, cityName);
-
-        Serial.printf("Fetching weather for: %.4f, %.4f (%s)\n",
-                     latitude, longitude, cityName.c_str());
-
-        bool fetchSuccess = false;
-        for (int retry = 0; retry < HTTP_RETRY_ATTEMPTS; retry++) {
-            if (retry > 0) {
-                Serial.printf("Weather fetch retry %d/%d...\n", retry + 1, HTTP_RETRY_ATTEMPTS);
-                delay(HTTP_RETRY_DELAY_MS);
-            }
-
-            if (fetchWeatherData(latitude, longitude)) {
-                Serial.println("Weather fetch successful!");
-                if (calendarMode == "google") {
-                    preferences.begin("weather", true);
-                    String calendarIcsUrl = preferences.getString("calendar_ics", "");
-                    preferences.end();
-                    fetchCalendarData(calendarIcsUrl);
-                }
-                displayWeather();
-                lastRefreshTime = millis();
-                fetchSuccess = true;
-                break;
-            }
-        }
-
-        if (!fetchSuccess) {
+        if (!fetchAndShowFull()) {
             Serial.println("All weather fetch attempts failed!");
             M5.Display.startWrite();
             M5.Display.fillScreen(TFT_WHITE);
@@ -172,6 +354,11 @@ void setup() {
         lastRefreshTime = millis();
     }
 
+    // Clock mode: WiFi off after the initial fetch; stay awake in loop()
+    if (displayFace == 1 && WiFi.status() == WL_CONNECTED) {
+        disconnectWiFi();
+    }
+
     Serial.println("Setup complete!");
 }
 
@@ -184,59 +371,48 @@ void loop() {
         if (wakeup_reason == ESP_SLEEP_WAKEUP_UNDEFINED) {
             Serial.println("\n*** Manual wake detected (reset button or power on) ***");
             Serial.println("*** Waiting 30 seconds for user interaction ***");
-            Serial.println("*** Tap bottom-right corner of screen for CONFIG ***");
+            Serial.println("*** Tap bottom-right for CONFIG; rotary up/down to switch faces ***");
 
             unsigned long startWait = millis();
             const unsigned long waitDuration = USER_INTERACTION_TIMEOUT_MS;
             unsigned long lastSerialUpdate = 0;
 
             while (millis() - startWait < waitDuration) {
-                M5.update();
-
-                auto touch = M5.Touch.getDetail();
-                if (touch.wasPressed()) {
-                    int touchX = touch.x;
-                    int touchY = touch.y;
-
-                    if (touchX > (SCREEN_WIDTH - CFG_BUTTON_TOUCH_WIDTH) &&
-                        touchY > (SCREEN_HEIGHT - CFG_BUTTON_TOUCH_HEIGHT)) {
-                        Serial.println("\n*** CONFIG button pressed! ***");
-                        M5.Display.startWrite();
-                        M5.Display.fillScreen(TFT_WHITE);
-                        M5.Display.setTextSize(2);
-                        M5.Display.setCursor(20, 20);
-                        M5.Display.println("Opening Configuration...");
-                        M5.Display.println("\nConnect to:");
-                        M5.Display.println("  " + String(CONFIG_AP_SSID));
-                        M5.Display.println("Password: configure");
-                        M5.Display.println("URL: 192.168.4.1");
-                        M5.Display.endWrite();
-                        M5.Display.display();
-
-                        WiFi.disconnect();
-                        delay(500);
-                        startConfigPortal();
-                        ESP.restart();
-                    }
+                if (pollFaceControls()) {
+                    startWait = millis();
                 }
 
                 unsigned long remaining = (waitDuration - (millis() - startWait)) / 1000;
                 if (millis() - lastSerialUpdate >= 1000) {
-                    Serial.printf("Waiting for config tap... %lu seconds remaining\n", remaining);
+                    Serial.printf("Waiting for interaction... %lu seconds remaining (face %d)\n",
+                                  remaining, displayFace);
                     lastSerialUpdate = millis();
                 }
 
                 delay(100);
             }
 
-            Serial.println("*** Wait period ended, entering sleep mode ***\n");
+            Serial.println("*** Wait period ended ***\n");
         } else {
-            Serial.println("\n*** Automatic wake from timer - skipping interaction window ***");
+            Serial.println("\n*** Automatic wake from timer — skipping interaction window ***");
             Serial.println("*** Waiting 3 seconds for display to refresh ***");
             delay(3000);
         }
 
         hasWaited = true;
+    }
+
+    // Clock face: remain powered on with minute updates (no deep sleep)
+    if (displayFace == 1) {
+        runClockFaceLoop();
+        // Returned after switching to weather face — fall through to sleep
+        hasWaited = true;
+    }
+
+    if (displayFace != 0) {
+        // Safety: only weather face uses deep sleep
+        delay(1000);
+        return;
     }
 
     unsigned long sleepTime = getRefreshInterval();
@@ -254,6 +430,7 @@ void loop() {
     Serial.printf("Current time is: %s\n", isNightTime() ? "NIGHT" : "DAY");
     Serial.printf("Refresh interval: %lu minutes\n", sleepTime / 60000);
     Serial.printf("Refresh counter: %d/6\n", refreshCounter % 6);
+    Serial.printf("Display face: %d\n", displayFace);
     Serial.println("=================================");
 
     enterDeepSleep(sleepTime);

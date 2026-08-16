@@ -10,6 +10,8 @@ extern M5Canvas canvas;
 extern String cityName;
 extern bool useCelsius;
 extern String calendarMode;
+extern int displayFace;
+extern String lastDataRefreshClock;
 
 void useDefaultFont(int size = 2) {
     canvas.setFont(nullptr);
@@ -193,9 +195,9 @@ void drawHourlyForecast(int x, int y, int dx, int dy, int index) {
                        currentWeather.hourly[index].timeLabel : "--:--";
     int forecastHour = timeLabel.length() >= 2 ? timeLabel.substring(0, 2).toInt() : 12;
 
-    useDefaultFont(2);
+    useDefaultFont(3);
     canvas.setTextDatum(TC_DATUM);
-    canvas.drawString(timeLabel, x + dx / 2, y + 8);
+    canvas.drawString(timeLabel, x + dx / 2, y + 6);
     canvas.setTextDatum(TL_DATUM);
 
     bool isDay = isDaytime(forecastHour);
@@ -206,8 +208,8 @@ void drawHourlyForecast(int x, int y, int dx, int dy, int index) {
     drawIconScaled(iconX, iconY, weatherIcon, WEATHER_ICON_SIZE, iconSize, true);
 
     canvas.setTextDatum(TC_DATUM);
-    useDefaultFont(2);
-    canvas.drawString(formatTemp(currentWeather.hourly[index].temp), x + dx / 2, y + 92);
+    useDefaultFont(3);
+    canvas.drawString(formatTemp(currentWeather.hourly[index].temp), x + dx / 2, y + 90);
 
     canvas.setTextDatum(TL_DATUM);
 }
@@ -386,37 +388,48 @@ void drawCurrentConditions(int x, int y, int dx, int dy) {
     int mainTempY = y + 42;
     canvas.drawString(tempNum, mainTempX, mainTempY);
 
-    // Draw degree symbol for main temperature
+    int tempFontH = canvas.fontHeight();
     int degreeX = mainTempX + canvas.textWidth(tempNum) + 8;
     int degreeY = mainTempY + 11;
     drawDegreeSymbol(degreeX, degreeY, TEMP_DEGREE_RADIUS_LARGE);
 
-    useDisplayFont(2);
-
-    // Draw weather icon
+    // Weather icon: match temperature font height, tight gap after degree
     struct tm timeinfo;
     bool hasTime = getLocalTime(&timeinfo);
     if (!hasTime) {
         timeinfo.tm_hour = 12;
     }
     bool isDay = isDaytime(timeinfo.tm_hour);
-
-    int iconX = x + 215;
-    int iconY = y + 43;
     const uint8_t* weatherIcon = getWeatherIcon(currentWeather.weatherCode, isDay);
-    drawIcon(iconX, iconY, weatherIcon, WEATHER_ICON_SIZE, WEATHER_ICON_SIZE, true);
 
-    // Draw condition text
+    int iconSize = tempFontH > 0 ? tempFontH : 72;
+    if (iconSize < 64) {
+        iconSize = 64;
+    }
+    if (iconSize > 96) {
+        iconSize = 96;
+    }
+    int iconX = degreeX + TEMP_DEGREE_RADIUS_LARGE * 2 + 14;
+    int iconY = mainTempY + (tempFontH - iconSize) / 2;
+    if (iconY < y + PANEL_TITLE_HEIGHT + 4) {
+        iconY = y + PANEL_TITLE_HEIGHT + 4;
+    }
+    drawIconScaled(iconX, iconY, weatherIcon, WEATHER_ICON_SIZE, iconSize, true);
+
+    // Condition text keeps the larger Face-0 size
+    useDisplayFont(2);
     String condition = getWeatherConditionText(currentWeather.weatherCode);
+    int conditionX = iconX + iconSize + 16;
     canvas.setTextSize(condition.length() > 14 ? 2 : 3);
-    canvas.drawString(condition, x + 300, y + 50);
+    canvas.drawString(condition, conditionX, y + 48);
 
     useDisplayFont(2);
-    canvas.drawString(String("Feels ") + formatTemp(currentWeather.apparentTemperature), x + 300, y + 84);
+    canvas.drawString(String("Feels ") + formatTemp(currentWeather.apparentTemperature), conditionX, y + 84);
     canvas.drawString(String("Today ") + formatTemp(currentWeather.todayMinTemp) + " / " +
-                      formatTemp(currentWeather.todayMaxTemp), x + 300, y + 110);
+                      formatTemp(currentWeather.todayMaxTemp), conditionX, y + 110);
 
     int detailsX = x + 545;
+    useDisplayFont(2);
     canvas.drawString("Humidity", detailsX, y + 46);
     canvas.drawString(String((int)currentWeather.humidity) + "%", detailsX + 120, y + 46);
     canvas.drawString("Wind", detailsX, y + 74);
@@ -445,16 +458,16 @@ String getForecastDateLabel(int dayOffset) {
 void drawDailyForecast(int x, int y, int dx, int dy, int forecastIndex) {
     canvas.setTextDatum(TC_DATUM);
     int textW = dx - 14;
-    useCompactDisplayFont(2);
-    canvas.drawString(fitText(getForecastDateLabel(forecastIndex), textW), x + dx / 2, y + 8);
+    useCompactDisplayFont(3);
+    canvas.drawString(fitText(getForecastDateLabel(forecastIndex), textW), x + dx / 2, y + 6);
 
     const uint8_t* weatherIcon = getWeatherIcon(currentWeather.forecastWeatherCode[forecastIndex], true);
     drawIconScaled(x + dx / 2 - 26, y + 34, weatherIcon, WEATHER_ICON_SIZE, 52, true);
 
-    useCompactDisplayFont(2);
+    useCompactDisplayFont(3);
     String tempText = formatTemp(currentWeather.forecastMinTemp[forecastIndex]) + "/" +
                       formatTemp(currentWeather.forecastMaxTemp[forecastIndex]);
-    canvas.drawString(fitText(tempText, textW), x + dx / 2, y + 98);
+    canvas.drawString(fitText(tempText, textW), x + dx / 2, y + 96);
     canvas.drawString(fitText(String("Rain ") + String((int)currentWeather.forecastRain[forecastIndex]) + "%", textW),
                       x + dx / 2, y + 122);
     canvas.setTextDatum(TL_DATUM);
@@ -471,14 +484,14 @@ String fitText(String text, int maxWidth) {
     return text + "...";
 }
 
-void drawCalendarEvents(int x, int y, int dx, int dy) {
+void drawCalendarEvents(int x, int y, int dx, int dy, int textSize, int lineSpacing) {
     canvas.setTextDatum(TL_DATUM);
-    useDisplayFont(2);
+    useDisplayFont(textSize);
 
     if (!calendarFetchOk) {
         canvas.drawString("Calendar sync failed", x + 14, y + 20);
         if (calendarStatusMessage.length() > 0) {
-            canvas.drawString(fitText(calendarStatusMessage, dx - 28), x + 14, y + 52);
+            canvas.drawString(fitText(calendarStatusMessage, dx - 28), x + 14, y + 20 + lineSpacing);
         }
         return;
     }
@@ -492,21 +505,25 @@ void drawCalendarEvents(int x, int y, int dx, int dy) {
     int maxTextWidth = dx - 28;
     for (int i = 0; i < calendarEventCount; i++) {
         canvas.drawString(fitText(calendarEvents[i], maxTextWidth), x + 14, lineY);
-        lineY += 32;
+        lineY += lineSpacing;
     }
 }
 
-void drawMonthCalendar(int x, int y, int dx, int dy) {
+void drawMonthCalendar(int x, int y, int dx, int dy, int textSize) {
+    if (textSize < 1) {
+        textSize = 1;
+    }
+
     int year = 0, month = 0, todayDay = 0;
     if (!resolveCalendarDate(year, month, todayDay)) {
         canvas.setTextDatum(TL_DATUM);
-        useDisplayFont(2);
+        useDisplayFont(textSize > 1 ? textSize : 2);
         canvas.setTextColor(TFT_BLACK, TFT_WHITE);
         canvas.drawString("Date unavailable", x + 14, y + 20);
         return;
     }
 
-    const int headerH = MONTH_CAL_WEEKDAY_HEADER_H;
+    const int headerH = MONTH_CAL_WEEKDAY_HEADER_H + (textSize - 1) * 12;
     const int gridH = dy - headerH;
     if (gridH < MONTH_CAL_WEEK_ROWS || dx < MONTH_CAL_WEEK_COLS) {
         return;
@@ -520,7 +537,7 @@ void drawMonthCalendar(int x, int y, int dx, int dy) {
     const int dim = daysInMonth(year, month);
 
     static const char* WEEKDAYS[] = {"S", "M", "T", "W", "T", "F", "S"};
-    canvas.setTextSize(1);
+    useDisplayFont(textSize);
     canvas.setTextDatum(TC_DATUM);
     canvas.setTextColor(TFT_BLACK, TFT_WHITE);
     for (int col = 0; col < MONTH_CAL_WEEK_COLS; col++) {
@@ -655,6 +672,35 @@ void drawM5PaperInfo(int x, int y, int dx, int dy) {
     canvas.drawString(String((int)displayHumid) + "%", x + 150, y + 210);
 }
 
+static void drawStatusHeader() {
+    useDisplayFont(3);
+    canvas.setTextDatum(TL_DATUM);
+
+    char nowClock[8] = "--:--";
+    struct tm nowInfo;
+    if (getLocalTime(&nowInfo)) {
+        sprintf(nowClock, "%02d:%02d", nowInfo.tm_hour, nowInfo.tm_min);
+    }
+    String headerLeft = String(VERSION) + "  " + nowClock + "  upd " + lastDataRefreshClock + " " + cityName;
+    canvas.drawString(headerLeft, 8, 6);
+
+    int rssi = WiFi.RSSI();
+    int quality = getRSSIQuality(rssi);
+    canvas.setTextDatum(TR_DATUM);
+    canvas.drawString(String(quality) + "%", SCREEN_WIDTH - 153, 8);
+    canvas.setTextDatum(TL_DATUM);
+    drawRSSI(SCREEN_WIDTH - 147, 23, rssi);
+
+    int batteryPercent = M5.Power.getBatteryLevel();
+    if (batteryPercent < 0) batteryPercent = 0;
+    if (batteryPercent > 100) batteryPercent = 100;
+
+    canvas.setTextDatum(TR_DATUM);
+    canvas.drawString(String(batteryPercent) + "%", SCREEN_WIDTH - 71, 8);
+    canvas.setTextDatum(TL_DATUM);
+    drawBattery(SCREEN_WIDTH - 60, 10, batteryPercent);
+}
+
 void displayWeather() {
     M5.Display.startWrite();
 
@@ -668,35 +714,10 @@ void displayWeather() {
     canvas.fillSprite(TFT_WHITE);
     canvas.setTextColor(TFT_BLACK, TFT_WHITE);
     canvas.setTextDatum(TL_DATUM);
+
+    drawStatusHeader();
+
     useDisplayFont(2);
-
-    // Draw header
-    useDisplayFont(2);
-    canvas.drawString(VERSION, 20, 10);
-    canvas.setTextDatum(TC_DATUM);
-    canvas.drawString(cityName, SCREEN_WIDTH / 2, 10);
-    canvas.setTextDatum(TL_DATUM);
-
-    // Draw WiFi signal strength
-    int rssi = WiFi.RSSI();
-    int quality = getRSSIQuality(rssi);
-    canvas.setTextDatum(TR_DATUM);
-    canvas.drawString(String(quality) + "%", SCREEN_WIDTH - 153, 10);
-    canvas.setTextDatum(TL_DATUM);
-    drawRSSI(SCREEN_WIDTH - 147, 23, rssi);
-
-    // Draw battery level
-    int batteryPercent = M5.Power.getBatteryLevel();
-    if (batteryPercent < 0) batteryPercent = 0;
-    if (batteryPercent > 100) batteryPercent = 100;
-
-    canvas.setTextDatum(TR_DATUM);
-    canvas.drawString(String(batteryPercent) + "%", SCREEN_WIDTH - 71, 10);
-    canvas.setTextDatum(TL_DATUM);
-    drawBattery(SCREEN_WIDTH - 60, 10, batteryPercent);
-
-    // Draw config button indicator
-    useDisplayFont(1);
     canvas.drawString("[CFG]", SCREEN_WIDTH - 50, SCREEN_HEIGHT - 20);
 
     // Draw main border
@@ -714,15 +735,15 @@ void displayWeather() {
 
     canvas.drawRect(contentX, currentY, contentW, currentH, TFT_BLACK);
     canvas.setTextDatum(TL_DATUM);
-    useDisplayFont(2);
-    canvas.drawString("Current Weather", contentX + 12, currentY + 10);
+    useDisplayFont(3);
+    canvas.drawString("Current Weather", contentX + 12, currentY + 8);
     canvas.drawLine(contentX, currentY + PANEL_TITLE_HEIGHT, contentX + contentW, currentY + PANEL_TITLE_HEIGHT, TFT_BLACK);
     drawCurrentConditions(contentX, currentY, contentW, currentH);
 
     // Draw next 8 hours panel
     canvas.drawRect(contentX, hourlyY, contentW, hourlyH, TFT_BLACK);
-    useDisplayFont(2);
-    canvas.drawString("Next 8 Hours", contentX + 12, hourlyY + 10);
+    useDisplayFont(3);
+    canvas.drawString("Next 8 Hours", contentX + 12, hourlyY + 8);
     canvas.drawLine(contentX, hourlyY + PANEL_TITLE_HEIGHT, contentX + contentW, hourlyY + PANEL_TITLE_HEIGHT, TFT_BLACK);
     int hourlyCellW = contentW / MAX_HOURLY;
     for (int i = 0; i < MAX_HOURLY; i++) {
@@ -739,8 +760,8 @@ void displayWeather() {
     const int calendarX = contentX + forecastW;
 
     canvas.drawRect(contentX, dailyY, forecastW, dailyH, TFT_BLACK);
-    useDisplayFont(2);
-    canvas.drawString("Next 3 Days", contentX + 12, dailyY + 10);
+    useDisplayFont(3);
+    canvas.drawString("Next 3 Days", contentX + 12, dailyY + 8);
     canvas.drawLine(contentX, dailyY + PANEL_TITLE_HEIGHT, contentX + forecastW, dailyY + PANEL_TITLE_HEIGHT, TFT_BLACK);
     int dailyCellW = forecastW / 3;
     for (int i = 0; i < 3; i++) {
@@ -752,20 +773,20 @@ void displayWeather() {
     }
 
     canvas.drawRect(calendarX, dailyY, calendarW, dailyH, TFT_BLACK);
-    useDisplayFont(2);
+    useDisplayFont(3);
     if (calendarMode == "google") {
-        canvas.drawString("Google Calendar", calendarX + 12, dailyY + 10);
+        canvas.drawString("Google Calendar", calendarX + 12, dailyY + 8);
         canvas.drawLine(calendarX, dailyY + PANEL_TITLE_HEIGHT, calendarX + calendarW, dailyY + PANEL_TITLE_HEIGHT, TFT_BLACK);
-        drawCalendarEvents(calendarX, dailyY + PANEL_TITLE_HEIGHT, calendarW, dailyH - PANEL_TITLE_HEIGHT);
+        drawCalendarEvents(calendarX, dailyY + PANEL_TITLE_HEIGHT, calendarW, dailyH - PANEL_TITLE_HEIGHT, 3, 40);
     } else {
         int year = 0, month = 0, day = 0;
         String title = "Month Calendar";
         if (resolveCalendarDate(year, month, day)) {
             title = String(monthNameEnglish(month)) + " " + String(year);
         }
-        canvas.drawString(title, calendarX + 12, dailyY + 10);
+        canvas.drawString(title, calendarX + 12, dailyY + 8);
         canvas.drawLine(calendarX, dailyY + PANEL_TITLE_HEIGHT, calendarX + calendarW, dailyY + PANEL_TITLE_HEIGHT, TFT_BLACK);
-        drawMonthCalendar(calendarX, dailyY + PANEL_TITLE_HEIGHT, calendarW, dailyH - PANEL_TITLE_HEIGHT);
+        drawMonthCalendar(calendarX, dailyY + PANEL_TITLE_HEIGHT, calendarW, dailyH - PANEL_TITLE_HEIGHT, 2);
     }
 
     // Push to display
@@ -774,4 +795,262 @@ void displayWeather() {
 
     M5.Display.endWrite();
     M5.Display.display();
+}
+
+void drawFace1WeatherSummary(int x, int y, int dx, int dy) {
+    canvas.setTextDatum(TL_DATUM);
+    useDisplayFont(3);
+    canvas.drawString("Current Weather", x + 12, y + 8);
+    canvas.drawLine(x, y + PANEL_TITLE_HEIGHT, x + dx, y + PANEL_TITLE_HEIGHT, TFT_BLACK);
+
+    const int contentY = y + PANEL_TITLE_HEIGHT;
+    const int iconSize = FACE1_WEATHER_ICON_SIZE;
+
+    // Temperature at 2x previous Face 1 size (FreeSansBold24pt size 2)
+    canvas.setFont(&fonts::FreeSansBold24pt7b);
+    canvas.setTextSize(2);
+    String tempNum = String((int)currentWeather.temperature);
+    int mainTempX = x + 12;
+    int mainTempY = contentY + 16;
+    canvas.drawString(tempNum, mainTempX, mainTempY);
+    int degreeX = mainTempX + canvas.textWidth(tempNum) + 8;
+    int degreeY = mainTempY + 14;
+    drawDegreeSymbol(degreeX, degreeY, 10);
+    useDisplayFont(3);
+    canvas.drawString(useCelsius ? "C" : "F", degreeX + 18, mainTempY + 48);
+
+    struct tm timeinfo;
+    if (!getLocalTime(&timeinfo)) {
+        timeinfo.tm_hour = 12;
+    }
+    bool isDay = isDaytime(timeinfo.tm_hour);
+    const uint8_t* weatherIcon = getWeatherIcon(currentWeather.weatherCode, isDay);
+
+    // Icon 4x source size (256px), right side of weather panel
+    int iconX = x + dx - iconSize - 8;
+    int iconY = contentY + 4;
+    if (iconY + iconSize > y + dy - 4) {
+        iconY = y + dy - iconSize - 4;
+    }
+    drawIconScaled(iconX, iconY, weatherIcon, WEATHER_ICON_SIZE, iconSize, true);
+
+    // Details under the temperature, left of the large icon
+    int textMaxW = iconX - mainTempX - 8;
+    if (textMaxW < 80) {
+        textMaxW = dx / 2;
+    }
+    useDisplayFont(3);
+    String condition = getWeatherConditionText(currentWeather.weatherCode);
+    canvas.drawString(fitText(condition, textMaxW), mainTempX, contentY + 120);
+    canvas.drawString(String("Feels ") + formatTemp(currentWeather.apparentTemperature), mainTempX, contentY + 158);
+    canvas.drawString(String("Today ") + formatTemp(currentWeather.todayMinTemp) + " / " +
+                      formatTemp(currentWeather.todayMaxTemp), mainTempX, contentY + 196);
+
+    canvas.setTextDatum(TL_DATUM);
+}
+
+static void alignEpdRect(int &x, int &w) {
+    int x2 = x + w;
+    x = x & ~3;
+    x2 = (x2 + 3) & ~3;
+    w = x2 - x;
+    if (w < 4) {
+        w = 4;
+    }
+}
+
+static void refreshEpdRegion(int x, int y, int w, int h) {
+    alignEpdRect(x, w);
+    M5.Display.setEpdMode(epd_mode_t::epd_fast);
+    M5.Display.setClipRect(x, y, w, h);
+    M5.Display.display();
+    M5.Display.waitDisplay();
+    M5.Display.clearClipRect();
+    M5.Display.setEpdMode(epd_mode_t::epd_quality);
+}
+
+static void drawFace1ClockContent(M5Canvas &spr, int w, int h) {
+    spr.fillSprite(TFT_WHITE);
+    spr.setTextColor(TFT_BLACK, TFT_WHITE);
+    spr.drawRect(0, 0, w, h, TFT_BLACK);
+
+    char timeStr[8] = "--:--";
+    struct tm timeinfo;
+    bool hasLocalTime = getLocalTime(&timeinfo);
+    if (hasLocalTime) {
+        sprintf(timeStr, "%02d:%02d", timeinfo.tm_hour, timeinfo.tm_min);
+    }
+
+    spr.setFont(&fonts::FreeSansBold24pt7b);
+    spr.setTextSize(2);
+    spr.setTextDatum(TC_DATUM);
+    spr.drawString(timeStr, w / 2, 28);
+
+    spr.setFont(nullptr);
+    spr.setTextFont(1);
+    spr.setTextSize(3);
+    spr.setTextDatum(TC_DATUM);
+    int year = 0, month = 0, day = 0;
+    String dateLine = "Date unavailable";
+    if (resolveCalendarDate(year, month, day)) {
+        static const char* daysEn[] = {"Sunday", "Monday", "Tuesday", "Wednesday",
+                                       "Thursday", "Friday", "Saturday"};
+        int wday = weekdaySundayZero(year, month, day);
+        char buf[48];
+        sprintf(buf, "%s %02d %s %04d", daysEn[wday], day, monthNameEnglish(month), year);
+        dateLine = String(buf);
+    } else if (hasLocalTime) {
+        dateLine = getDisplayDateLabel(0);
+    }
+    spr.drawString(dateLine, w / 2, 130);
+    spr.setTextDatum(TL_DATUM);
+}
+
+void updateClockFacePartial(bool updateWeather) {
+    const int leftX = FACE1_MARGIN;
+    const int clockY = FACE1_CONTENT_TOP;
+    const int weatherY = FACE1_CONTENT_TOP + FACE1_TOP_H + FACE1_GAP;
+
+    M5.Display.startWrite();
+
+    // Refresh status header (city / wifi / battery) on each clock tick
+    canvas.setColorDepth(8);
+    if (canvas.createSprite(SCREEN_WIDTH, HEADER_HEIGHT)) {
+        canvas.fillSprite(TFT_WHITE);
+        canvas.setTextColor(TFT_BLACK, TFT_WHITE);
+        drawStatusHeader();
+        canvas.pushSprite(0, 0);
+        canvas.deleteSprite();
+        refreshEpdRegion(0, 0, SCREEN_WIDTH, HEADER_HEIGHT);
+    }
+
+    M5Canvas clockSpr(&M5.Display);
+    clockSpr.setColorDepth(8);
+    if (clockSpr.createSprite(FACE1_LEFT_W, FACE1_TOP_H)) {
+        drawFace1ClockContent(clockSpr, FACE1_LEFT_W, FACE1_TOP_H);
+        clockSpr.pushSprite(leftX, clockY);
+        clockSpr.deleteSprite();
+        refreshEpdRegion(leftX, clockY, FACE1_LEFT_W, FACE1_TOP_H);
+    }
+
+    if (updateWeather) {
+        canvas.setColorDepth(8);
+        if (canvas.createSprite(FACE1_LEFT_W, FACE1_BOTTOM_H)) {
+            canvas.fillSprite(TFT_WHITE);
+            canvas.setTextColor(TFT_BLACK, TFT_WHITE);
+            canvas.drawRect(0, 0, FACE1_LEFT_W, FACE1_BOTTOM_H, TFT_BLACK);
+            drawFace1WeatherSummary(0, 0, FACE1_LEFT_W, FACE1_BOTTOM_H);
+            canvas.pushSprite(leftX, weatherY);
+            canvas.deleteSprite();
+            refreshEpdRegion(leftX, weatherY, FACE1_LEFT_W, FACE1_BOTTOM_H);
+        }
+    }
+
+    M5.Display.endWrite();
+}
+
+void displayClockFace() {
+    M5.Display.setEpdMode(epd_mode_t::epd_quality);
+    M5.Display.startWrite();
+
+    canvas.setColorDepth(8);
+    if (!canvas.createSprite(SCREEN_WIDTH, SCREEN_HEIGHT)) {
+        Serial.println("ERROR: Failed to allocate canvas memory!");
+        M5.Display.endWrite();
+        return;
+    }
+
+    canvas.fillSprite(TFT_WHITE);
+    canvas.setTextColor(TFT_BLACK, TFT_WHITE);
+    canvas.setTextDatum(TL_DATUM);
+
+    drawStatusHeader();
+
+    useDisplayFont(3);
+
+    const int leftX = FACE1_MARGIN;
+    const int clockY = FACE1_CONTENT_TOP;
+    const int weatherY = FACE1_CONTENT_TOP + FACE1_TOP_H + FACE1_GAP;
+    const int rightX = FACE1_MARGIN + FACE1_LEFT_W + FACE1_GAP;
+    const int rightH = SCREEN_HEIGHT - FACE1_CONTENT_TOP - FACE1_MARGIN;
+
+    // Clock + date panel
+    canvas.drawRect(leftX, clockY, FACE1_LEFT_W, FACE1_TOP_H, TFT_BLACK);
+
+    char timeStr[8] = "--:--";
+    struct tm timeinfo;
+    bool hasLocalTime = getLocalTime(&timeinfo);
+    if (hasLocalTime) {
+        sprintf(timeStr, "%02d:%02d", timeinfo.tm_hour, timeinfo.tm_min);
+    }
+
+    canvas.setFont(&fonts::FreeSansBold24pt7b);
+    canvas.setTextSize(2);
+    canvas.setTextDatum(TC_DATUM);
+    canvas.drawString(timeStr, leftX + FACE1_LEFT_W / 2, clockY + 28);
+
+    useDisplayFont(3);
+    canvas.setTextDatum(TC_DATUM);
+    int year = 0, month = 0, day = 0;
+    String dateLine = "Date unavailable";
+    if (resolveCalendarDate(year, month, day)) {
+        static const char* daysEn[] = {"Sunday", "Monday", "Tuesday", "Wednesday",
+                                       "Thursday", "Friday", "Saturday"};
+        int wday = weekdaySundayZero(year, month, day);
+        char buf[48];
+        sprintf(buf, "%s %02d %s %04d", daysEn[wday], day, monthNameEnglish(month), year);
+        dateLine = String(buf);
+    } else if (hasLocalTime) {
+        dateLine = getDisplayDateLabel(0);
+    }
+    canvas.drawString(dateLine, leftX + FACE1_LEFT_W / 2, clockY + 130);
+    canvas.setTextDatum(TL_DATUM);
+
+    // Weather summary panel
+    canvas.drawRect(leftX, weatherY, FACE1_LEFT_W, FACE1_BOTTOM_H, TFT_BLACK);
+    drawFace1WeatherSummary(leftX, weatherY, FACE1_LEFT_W, FACE1_BOTTOM_H);
+
+    // Large calendar panel
+    canvas.drawRect(rightX, FACE1_CONTENT_TOP, FACE1_RIGHT_W, rightH, TFT_BLACK);
+    useDisplayFont(3);
+    if (calendarMode == "google") {
+        canvas.drawString("Google Calendar", rightX + 12, FACE1_CONTENT_TOP + 8);
+        canvas.drawLine(rightX, FACE1_CONTENT_TOP + PANEL_TITLE_HEIGHT,
+                        rightX + FACE1_RIGHT_W, FACE1_CONTENT_TOP + PANEL_TITLE_HEIGHT, TFT_BLACK);
+        drawCalendarEvents(rightX, FACE1_CONTENT_TOP + PANEL_TITLE_HEIGHT,
+                           FACE1_RIGHT_W, rightH - PANEL_TITLE_HEIGHT, 3, 48);
+    } else {
+        String title = "Month Calendar";
+        if (year > 0 && month > 0) {
+            title = String(monthNameEnglish(month)) + " " + String(year);
+        } else {
+            int y2 = 0, m2 = 0, d2 = 0;
+            if (resolveCalendarDate(y2, m2, d2)) {
+                title = String(monthNameEnglish(m2)) + " " + String(y2);
+            }
+        }
+        canvas.drawString(title, rightX + 12, FACE1_CONTENT_TOP + 8);
+        canvas.drawLine(rightX, FACE1_CONTENT_TOP + PANEL_TITLE_HEIGHT,
+                        rightX + FACE1_RIGHT_W, FACE1_CONTENT_TOP + PANEL_TITLE_HEIGHT, TFT_BLACK);
+        drawMonthCalendar(rightX, FACE1_CONTENT_TOP + PANEL_TITLE_HEIGHT,
+                          FACE1_RIGHT_W, rightH - PANEL_TITLE_HEIGHT, 3);
+    }
+
+    useDisplayFont(2);
+    canvas.setTextDatum(TL_DATUM);
+    canvas.drawString("[CFG]", SCREEN_WIDTH - 50, SCREEN_HEIGHT - 20);
+
+    canvas.pushSprite(0, 0);
+    canvas.deleteSprite();
+
+    M5.Display.endWrite();
+    M5.Display.display();
+}
+
+void showActiveFace() {
+    if (displayFace == 1) {
+        displayClockFace();
+    } else {
+        displayWeather();
+    }
 }
