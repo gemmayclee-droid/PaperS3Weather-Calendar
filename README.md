@@ -2,41 +2,15 @@
 
 PaperS3Weather-Calendar is a weather and Google Calendar dashboard for the M5Paper S3 e-ink display. It shows current weather, the next 8 hours, the next 3 days, and today's calendar events on one screen, with English, Simplified Chinese, or Traditional Chinese display labels selected from the setup portal.
 
-| English | 简体中文 | 繁體中文 |
+| 繁體中文 | 简体中文 | English |
 | --- | --- | --- |
-| ![English dashboard](M5PaperS3_Weather_Calendar_EN.png) | ![Simplified Chinese dashboard](M5PaperS3_Weather_Calendar_CN.png) | ![Traditional Chinese dashboard](M5PaperS3_Weather_Calendar_ZH.png) |
+| ![Traditional Chinese dashboard](M5PaperS3_Weather_Calendar_ZH.png) | ![Simplified Chinese dashboard](M5PaperS3_Weather_Calendar_CN.png) | ![English dashboard](M5PaperS3_Weather_Calendar_EN.png) |
 
 Firmware is built automatically with GitHub Actions. Download the current `firmware.bin` from the project's [GitHub Releases](https://github.com/gemmayclee-droid/PaperS3Weather-Calendar/releases). The repository keeps only the newest firmware release to avoid stale downloads.
 
 [![Arduino](https://img.shields.io/badge/Arduino-Compatible-brightgreen.svg)](https://www.arduino.cc/)
 [![PlatformIO](https://img.shields.io/badge/PlatformIO-Ready-orange.svg)](https://platformio.org/)
 [![ESP32-S3](https://img.shields.io/badge/ESP32--S3-Supported-blue.svg)](https://www.espressif.com/)
-
-## 简体中文说明
-
-PaperS3Weather-Calendar 是为 M5Paper S3 电子墨水屏制作的天气与 Google Calendar 仪表板。主画面会在同一页显示当前天气、未来 8 小时天气、未来 3 天天气，以及当天 Google Calendar 行程。
-
-主要功能：
-
-- 当前天气：温度、体感温度、天气状态、今日最高/最低温、湿度、风速、降雨、日出日落和日期。
-- 未来 8 小时：从当前天气时间往后两小时开始，显示时间、天气图标和温度。
-- 未来 3 天：显示日期、天气图标、最高/最低温和降雨概率。
-- Google Calendar：通过 ICS URL 显示当天最多三条行程。
-- 显示语言：默认英文，可在设置页面或主画面左下角切换英文、简体中文、繁体中文。
-- 自动构建：GitHub Actions 会发布最新 `firmware.bin`，Release 页面只保留最新版本。
-
-快速安装：
-
-1. 打开 [Releases 页面](https://github.com/gemmayclee-droid/PaperS3Weather-Calendar/releases)。
-2. 下载最新的 `firmware.bin`。
-3. 用你常用的 ESP32 烧录工具写入 M5Paper S3。
-
-首次设置：
-
-1. 连接 WiFi 热点 `PaperS3Weather-Calendar`，密码为 `configure`。
-2. 打开 `http://192.168.4.1`。
-3. 输入 WiFi、城市、Google Calendar ICS URL、温度单位、显示语言和刷新间隔。
-4. Google 私人日历请使用 **Secret address in iCal format**，普通分享链接或浏览器网址通常会导致 `HTTP 404`。
 
 ## 繁體中文說明
 
@@ -63,6 +37,32 @@ PaperS3Weather-Calendar 是為 M5Paper S3 電子墨水螢幕製作的天氣與 G
 2. 打開 `http://192.168.4.1`。
 3. 輸入 WiFi、城市、Google Calendar ICS URL、溫度單位、顯示語言和刷新間隔。
 4. Google 私人日曆請使用 **Secret address in iCal format**，一般分享連結或瀏覽器網址通常會導致 `HTTP 404`。
+
+## 简体中文说明
+
+PaperS3Weather-Calendar 是为 M5Paper S3 电子墨水屏制作的天气与 Google Calendar 仪表板。主画面会在同一页显示当前天气、未来 8 小时天气、未来 3 天天气，以及当天 Google Calendar 行程。
+
+主要功能：
+
+- 当前天气：温度、体感温度、天气状态、今日最高/最低温、湿度、风速、降雨、日出日落和日期。
+- 未来 8 小时：从当前天气时间往后两小时开始，显示时间、天气图标和温度。
+- 未来 3 天：显示日期、天气图标、最高/最低温和降雨概率。
+- Google Calendar：通过 ICS URL 显示当天最多三条行程。
+- 显示语言：默认英文，可在设置页面或主画面左下角切换英文、简体中文、繁体中文。
+- 自动构建：GitHub Actions 会发布最新 `firmware.bin`，Release 页面只保留最新版本。
+
+快速安装：
+
+1. 打开 [Releases 页面](https://github.com/gemmayclee-droid/PaperS3Weather-Calendar/releases)。
+2. 下载最新的 `firmware.bin`。
+3. 用你常用的 ESP32 烧录工具写入 M5Paper S3。
+
+首次设置：
+
+1. 连接 WiFi 热点 `PaperS3Weather-Calendar`，密码为 `configure`。
+2. 打开 `http://192.168.4.1`。
+3. 输入 WiFi、城市、Google Calendar ICS URL、温度单位、显示语言和刷新间隔。
+4. Google 私人日历请使用 **Secret address in iCal format**，普通分享链接或浏览器网址通常会导致 `HTTP 404`。
 
 ## Features
 
