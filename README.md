@@ -1,20 +1,34 @@
 # PaperS3Weather-Calendar
 
-PaperS3Weather-Calendar is a weather and Google Calendar dashboard for the M5Paper S3 e-ink display. It shows current weather, the next 8 hours, the next 3 days, and today's calendar events on one screen, with English, Simplified Chinese, or Traditional Chinese display labels selected from the setup portal.
+<p align="center">
+  <a href="#繁體中文"><strong>繁體中文</strong></a>
+  ·
+  <a href="#中文"><strong>简体中文</strong></a>
+  ·
+  <a href="#english"><strong>English</strong></a>
+</p>
+
+---
+
+## 繁體中文
+
+<p align="center">
+  <strong>繁體中文</strong>
+  ·
+  <a href="#中文">简体中文</a>
+  ·
+  <a href="#english">English</a>
+</p>
+
+PaperS3Weather-Calendar 是為 M5Paper S3 電子墨水螢幕製作的天氣與 Google Calendar 儀表板。主畫面會在同一頁顯示目前天氣、未來 8 小時天氣、未來 3 天天氣，以及當天 Google Calendar 行程。
 
 | 繁體中文 | 简体中文 | English |
 | --- | --- | --- |
 | ![Traditional Chinese dashboard](M5PaperS3_Weather_Calendar_ZH.png) | ![Simplified Chinese dashboard](M5PaperS3_Weather_Calendar_CN.png) | ![English dashboard](M5PaperS3_Weather_Calendar_EN.png) |
 
-Firmware is built automatically with GitHub Actions. Download the current `firmware.bin` from the project's [GitHub Releases](https://github.com/gemmayclee-droid/PaperS3Weather-Calendar/releases). The repository keeps only the newest firmware release to avoid stale downloads.
-
 [![Arduino](https://img.shields.io/badge/Arduino-Compatible-brightgreen.svg)](https://www.arduino.cc/)
 [![PlatformIO](https://img.shields.io/badge/PlatformIO-Ready-orange.svg)](https://platformio.org/)
 [![ESP32-S3](https://img.shields.io/badge/ESP32--S3-Supported-blue.svg)](https://www.espressif.com/)
-
-## 繁體中文說明
-
-PaperS3Weather-Calendar 是為 M5Paper S3 電子墨水螢幕製作的天氣與 Google Calendar 儀表板。主畫面會在同一頁顯示目前天氣、未來 8 小時天氣、未來 3 天天氣，以及當天 Google Calendar 行程。
 
 主要功能：
 
@@ -38,9 +52,23 @@ PaperS3Weather-Calendar 是為 M5Paper S3 電子墨水螢幕製作的天氣與 G
 3. 輸入 WiFi、城市、Google Calendar ICS URL、溫度單位、顯示語言和刷新間隔。
 4. Google 私人日曆請使用 **Secret address in iCal format**，一般分享連結或瀏覽器網址通常會導致 `HTTP 404`。
 
-## 简体中文说明
+---
+
+## 中文
+
+<p align="center">
+  <a href="#繁體中文">繁體中文</a>
+  ·
+  <strong>简体中文</strong>
+  ·
+  <a href="#english">English</a>
+</p>
 
 PaperS3Weather-Calendar 是为 M5Paper S3 电子墨水屏制作的天气与 Google Calendar 仪表板。主画面会在同一页显示当前天气、未来 8 小时天气、未来 3 天天气，以及当天 Google Calendar 行程。
+
+| 繁體中文 | 简体中文 | English |
+| --- | --- | --- |
+| ![Traditional Chinese dashboard](M5PaperS3_Weather_Calendar_ZH.png) | ![Simplified Chinese dashboard](M5PaperS3_Weather_Calendar_CN.png) | ![English dashboard](M5PaperS3_Weather_Calendar_EN.png) |
 
 主要功能：
 
@@ -63,6 +91,30 @@ PaperS3Weather-Calendar 是为 M5Paper S3 电子墨水屏制作的天气与 Goog
 2. 打开 `http://192.168.4.1`。
 3. 输入 WiFi、城市、Google Calendar ICS URL、温度单位、显示语言和刷新间隔。
 4. Google 私人日历请使用 **Secret address in iCal format**，普通分享链接或浏览器网址通常会导致 `HTTP 404`。
+
+---
+
+## English
+
+<p align="center">
+  <a href="#繁體中文">繁體中文</a>
+  ·
+  <a href="#中文">简体中文</a>
+  ·
+  <strong>English</strong>
+</p>
+
+PaperS3Weather-Calendar is a weather and Google Calendar dashboard for the M5Paper S3 e-ink display. It shows current weather, the next 8 hours, the next 3 days, and today's calendar events on one screen, with English, Simplified Chinese, or Traditional Chinese display labels selected from the setup portal.
+
+| 繁體中文 | 简体中文 | English |
+| --- | --- | --- |
+| ![Traditional Chinese dashboard](M5PaperS3_Weather_Calendar_ZH.png) | ![Simplified Chinese dashboard](M5PaperS3_Weather_Calendar_CN.png) | ![English dashboard](M5PaperS3_Weather_Calendar_EN.png) |
+
+Firmware is built automatically with GitHub Actions. Download the current `firmware.bin` from the project's [GitHub Releases](https://github.com/gemmayclee-droid/PaperS3Weather-Calendar/releases). The repository keeps only the newest firmware release to avoid stale downloads.
+
+[![Arduino](https://img.shields.io/badge/Arduino-Compatible-brightgreen.svg)](https://www.arduino.cc/)
+[![PlatformIO](https://img.shields.io/badge/PlatformIO-Ready-orange.svg)](https://platformio.org/)
+[![ESP32-S3](https://img.shields.io/badge/ESP32--S3-Supported-blue.svg)](https://www.espressif.com/)
 
 ## Features
 
