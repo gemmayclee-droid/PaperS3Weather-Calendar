@@ -22,9 +22,9 @@
 
 PaperS3Weather-Calendar 是為 M5Paper S3 電子墨水螢幕製作的天氣與 Google Calendar 儀表板。主畫面會在同一頁顯示目前天氣、未來 8 小時天氣、未來 3 天天氣，以及當天 Google Calendar 行程。
 
-| 繁體中文 | 简体中文 | English |
-| --- | --- | --- |
-| ![Traditional Chinese dashboard](M5PaperS3_Weather_Calendar_ZH.png) | ![Simplified Chinese dashboard](M5PaperS3_Weather_Calendar_CN.png) | ![English dashboard](M5PaperS3_Weather_Calendar_EN.png) |
+### 畫面預覽
+
+![繁體中文儀表板](M5PaperS3_Weather_Calendar_ZH.png)
 
 [![Arduino](https://img.shields.io/badge/Arduino-Compatible-brightgreen.svg)](https://www.arduino.cc/)
 [![PlatformIO](https://img.shields.io/badge/PlatformIO-Ready-orange.svg)](https://platformio.org/)
@@ -66,9 +66,9 @@ PaperS3Weather-Calendar 是為 M5Paper S3 電子墨水螢幕製作的天氣與 G
 
 PaperS3Weather-Calendar 是为 M5Paper S3 电子墨水屏制作的天气与 Google Calendar 仪表板。主画面会在同一页显示当前天气、未来 8 小时天气、未来 3 天天气，以及当天 Google Calendar 行程。
 
-| 繁體中文 | 简体中文 | English |
-| --- | --- | --- |
-| ![Traditional Chinese dashboard](M5PaperS3_Weather_Calendar_ZH.png) | ![Simplified Chinese dashboard](M5PaperS3_Weather_Calendar_CN.png) | ![English dashboard](M5PaperS3_Weather_Calendar_EN.png) |
+### 画面预览
+
+![简体中文仪表板](M5PaperS3_Weather_Calendar_CN.png)
 
 主要功能：
 
@@ -106,9 +106,9 @@ PaperS3Weather-Calendar 是为 M5Paper S3 电子墨水屏制作的天气与 Goog
 
 PaperS3Weather-Calendar is a weather and Google Calendar dashboard for the M5Paper S3 e-ink display. It shows current weather, the next 8 hours, the next 3 days, and today's calendar events on one screen, with English, Simplified Chinese, or Traditional Chinese display labels selected from the setup portal.
 
-| 繁體中文 | 简体中文 | English |
-| --- | --- | --- |
-| ![Traditional Chinese dashboard](M5PaperS3_Weather_Calendar_ZH.png) | ![Simplified Chinese dashboard](M5PaperS3_Weather_Calendar_CN.png) | ![English dashboard](M5PaperS3_Weather_Calendar_EN.png) |
+### Preview
+
+![English dashboard](M5PaperS3_Weather_Calendar_EN.png)
 
 Firmware is built automatically with GitHub Actions. Download the current `firmware.bin` from the project's [GitHub Releases](https://github.com/gemmayclee-droid/PaperS3Weather-Calendar/releases). The repository keeps only the newest firmware release to avoid stale downloads.
 

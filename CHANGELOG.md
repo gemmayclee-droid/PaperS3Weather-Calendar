@@ -11,6 +11,7 @@
 ### Changed
 - Updated README branding and setup instructions for `PaperS3Weather-Calendar`.
 - Reorganized README language documentation into three linked tabs for Traditional Chinese, Simplified Chinese, and English.
+- Updated README previews so each language tab shows only its matching screenshot.
 - Updated the README preview and localized summaries to show Traditional Chinese first.
 - Documented the current single-screen weather and calendar layout.
 - Traditional Chinese display now uses the M5GFX `efontTW` font family to avoid missing glyph boxes.
