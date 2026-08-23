@@ -223,32 +223,82 @@ static const int REFRESH_MINUTE_OPTIONS[] = {1, 5, 10, 15, 30, 60, 120, 240, 480
 static const int REFRESH_MINUTE_OPTION_COUNT =
     (int)(sizeof(REFRESH_MINUTE_OPTIONS) / sizeof(REFRESH_MINUTE_OPTIONS[0]));
 
-int normalizeRefreshMinutes(int value, int defaultMinutes) {
-    for (int i = 0; i < REFRESH_MINUTE_OPTION_COUNT; i++) {
-        if (REFRESH_MINUTE_OPTIONS[i] == value) {
+static const int FACE1_REFRESH_MINUTE_OPTIONS[] = {15, 30, 60, 120, 240, 480};
+static const int FACE1_REFRESH_MINUTE_OPTION_COUNT =
+    (int)(sizeof(FACE1_REFRESH_MINUTE_OPTIONS) / sizeof(FACE1_REFRESH_MINUTE_OPTIONS[0]));
+
+static const int FACE1_CLOCK_REFRESH_MINUTE_OPTIONS[] = {1, 5, 10, 15, 30, 60, 120, 240};
+static const int FACE1_CLOCK_REFRESH_MINUTE_OPTION_COUNT =
+    (int)(sizeof(FACE1_CLOCK_REFRESH_MINUTE_OPTIONS) / sizeof(FACE1_CLOCK_REFRESH_MINUTE_OPTIONS[0]));
+
+static int normalizeRefreshMinutesFromOptions(int value, int defaultMinutes,
+                                              const int *opts, int optCount) {
+    for (int i = 0; i < optCount; i++) {
+        if (opts[i] == value) {
             return value;
         }
     }
-    for (int i = 0; i < REFRESH_MINUTE_OPTION_COUNT; i++) {
-        if (REFRESH_MINUTE_OPTIONS[i] == defaultMinutes) {
+    for (int i = 0; i < optCount; i++) {
+        if (opts[i] == defaultMinutes) {
             return defaultMinutes;
         }
     }
-    return DEFAULT_FACE0_DAY_MIN;
+    return opts[0];
+}
+
+int normalizeRefreshMinutes(int value, int defaultMinutes) {
+    return normalizeRefreshMinutesFromOptions(value, defaultMinutes,
+                                              REFRESH_MINUTE_OPTIONS,
+                                              REFRESH_MINUTE_OPTION_COUNT);
+}
+
+int normalizeFace1RefreshMinutes(int value, int defaultMinutes) {
+    return normalizeRefreshMinutesFromOptions(value, defaultMinutes,
+                                              FACE1_REFRESH_MINUTE_OPTIONS,
+                                              FACE1_REFRESH_MINUTE_OPTION_COUNT);
+}
+
+int normalizeFace1ClockRefreshMinutes(int value, int defaultMinutes) {
+    return normalizeRefreshMinutesFromOptions(value, defaultMinutes,
+                                              FACE1_CLOCK_REFRESH_MINUTE_OPTIONS,
+                                              FACE1_CLOCK_REFRESH_MINUTE_OPTION_COUNT);
+}
+
+int getFace1WeatherRefreshMinutes(bool night) {
+    preferences.begin("weather", true);
+    int minutes;
+    if (night) {
+        minutes = preferences.getInt("face1_night", DEFAULT_FACE1_NIGHT_MIN);
+        minutes = normalizeFace1RefreshMinutes(minutes, DEFAULT_FACE1_NIGHT_MIN);
+    } else {
+        minutes = preferences.getInt("face1_day", DEFAULT_FACE1_DAY_MIN);
+        minutes = normalizeFace1RefreshMinutes(minutes, DEFAULT_FACE1_DAY_MIN);
+    }
+    preferences.end();
+    return minutes;
+}
+
+int getFace1ClockRefreshMinutes(bool night) {
+    preferences.begin("weather", true);
+    int minutes;
+    if (night) {
+        minutes = preferences.getInt("face1_clock_night", DEFAULT_FACE1_CLOCK_NIGHT_MIN);
+        minutes = normalizeFace1ClockRefreshMinutes(minutes, DEFAULT_FACE1_CLOCK_NIGHT_MIN);
+    } else {
+        minutes = preferences.getInt("face1_clock_day", DEFAULT_FACE1_CLOCK_DAY_MIN);
+        minutes = normalizeFace1ClockRefreshMinutes(minutes, DEFAULT_FACE1_CLOCK_DAY_MIN);
+    }
+    preferences.end();
+    return minutes;
 }
 
 int getFaceRefreshMinutes(int face, bool night) {
+    if (face == 1) {
+        return getFace1WeatherRefreshMinutes(night);
+    }
     preferences.begin("weather", true);
     int minutes = -1;
-    if (face == 1) {
-        if (night) {
-            minutes = preferences.getInt("face1_night", DEFAULT_FACE1_NIGHT_MIN);
-            minutes = normalizeRefreshMinutes(minutes, DEFAULT_FACE1_NIGHT_MIN);
-        } else {
-            minutes = preferences.getInt("face1_day", DEFAULT_FACE1_DAY_MIN);
-            minutes = normalizeRefreshMinutes(minutes, DEFAULT_FACE1_DAY_MIN);
-        }
-    } else if (night) {
+    if (night) {
         minutes = preferences.getInt("face0_night", -1);
         if (minutes < 0) {
             minutes = preferences.getInt("night_interval", DEFAULT_FACE0_NIGHT_MIN);

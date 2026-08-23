@@ -125,25 +125,54 @@ static bool fetchAndShowFull() {
     return false;
 }
 
+static void markSettingsActivity() {
+    // Settings UI manages its own idle timeout; parent window resets when settings closes.
+}
+
 static bool openConfigFromUi() {
     Serial.println("\n*** CONFIG button pressed! ***");
-    M5.Display.startWrite();
-    M5.Display.fillScreen(TFT_WHITE);
-    M5.Display.setTextSize(2);
-    M5.Display.setCursor(20, 20);
-    M5.Display.println("Opening Configuration...");
-    M5.Display.println("\nConnect to:");
-    M5.Display.println("  " + String(CONFIG_AP_SSID));
-    M5.Display.println("Password: configure");
-    M5.Display.println("URL: 192.168.4.1");
-    M5.Display.endWrite();
-    M5.Display.display();
 
-    disconnectWiFi();
-    delay(500);
-    startConfigPortal();
-    ESP.restart();
+    SettingsExitResult result = runOnDeviceSettings(markSettingsActivity);
+
+    if (result == SETTINGS_EXIT_SAVED) {
+        ESP.restart();
+    }
+    if (result == SETTINGS_EXIT_WEB_PORTAL) {
+        M5.Display.startWrite();
+        M5.Display.fillScreen(TFT_WHITE);
+        M5.Display.setTextSize(2);
+        M5.Display.setCursor(20, 20);
+        M5.Display.println("Web setup mode");
+        M5.Display.println("\nConnect to:");
+        M5.Display.println("  " + String(CONFIG_AP_SSID));
+        M5.Display.println("Password: configure");
+        M5.Display.println("URL: 192.168.4.1");
+        M5.Display.endWrite();
+        M5.Display.display();
+
+        disconnectWiFi();
+        delay(500);
+        startConfigPortal();
+        ESP.restart();
+    }
+    if (result == SETTINGS_EXIT_CANCEL) {
+        showActiveFace();
+    }
     return true;
+}
+
+static void reloadNightModePref() {
+    preferences.begin("weather", true);
+    nightModeSleep = preferences.getBool("nightmode", true);
+    preferences.end();
+}
+
+static unsigned long clockWeatherFetchIntervalMs() {
+    return (unsigned long)getFace1WeatherRefreshMinutes(isNightTime()) * 60000UL;
+}
+
+static unsigned long clockDisplayRefreshIntervalMs() {
+    return (unsigned long)getFace1ClockRefreshMinutes(isNightTime()) * 60000UL;
 }
 
 static bool pollFaceControls() {
@@ -162,25 +191,52 @@ static bool pollFaceControls() {
         if (touch.x > (SCREEN_WIDTH - CFG_BUTTON_TOUCH_WIDTH) &&
             touch.y > (SCREEN_HEIGHT - CFG_BUTTON_TOUCH_HEIGHT)) {
             openConfigFromUi();
+            return true;
         }
     }
     return false;
 }
 
-// Stay awake on clock face: minute partial clock updates, hourly WiFi weather refresh
+static void runFaceSelectionWindow() {
+    Serial.println("\n*** Face selection window (30s) ***");
+    Serial.println("*** Tap bottom-right for CONFIG; rotary up/down to switch faces ***");
+
+    unsigned long startWait = millis();
+    const unsigned long waitDuration = USER_INTERACTION_TIMEOUT_MS;
+    unsigned long lastSerialUpdate = 0;
+
+    while (millis() - startWait < waitDuration) {
+        if (pollFaceControls()) {
+            startWait = millis();
+        }
+
+        unsigned long remaining = (waitDuration - (millis() - startWait)) / 1000;
+        if (millis() - lastSerialUpdate >= 1000) {
+            Serial.printf("Waiting for interaction... %lu seconds remaining (face %d)\n",
+                          remaining, displayFace);
+            lastSerialUpdate = millis();
+        }
+
+        delay(100);
+    }
+
+    Serial.println("*** Face selection window ended ***\n");
+}
+
+// Stay awake on clock face: clock display and weather fetch use separate configurable intervals
 static void runClockFaceLoop() {
     Serial.println("*** Clock face active — staying awake (no deep sleep) ***");
-    Serial.println("*** Clock panel updates each minute; weather via WiFi once per hour ***");
+    reloadNightModePref();
+    int clockMinutes = getFace1ClockRefreshMinutes(isNightTime());
+    int weatherMinutes = getFace1WeatherRefreshMinutes(isNightTime());
+    Serial.printf("*** Clock display every %d min; weather fetch every %d min (%s) ***\n",
+                  clockMinutes, weatherMinutes, isNightTime() ? "night" : "day");
 
     disconnectWiFi();
 
     unsigned long lastWeatherMs = millis();
+    unsigned long lastClockMs = millis();
     int partialCount = 0;
-    int lastDrawnMinute = -1;
-    struct tm timeinfo;
-    if (getLocalTime(&timeinfo)) {
-        lastDrawnMinute = timeinfo.tm_min;
-    }
 
     while (displayFace == 1) {
         pollFaceControls();
@@ -188,23 +244,33 @@ static void runClockFaceLoop() {
             break;
         }
 
-        if (getLocalTime(&timeinfo)) {
-            if (timeinfo.tm_min != lastDrawnMinute) {
-                lastDrawnMinute = timeinfo.tm_min;
-                Serial.printf("Clock tick %02d:%02d — partial update\n",
+        reloadNightModePref();
+        unsigned long clockIntervalMs = clockDisplayRefreshIntervalMs();
+        if (millis() - lastClockMs >= clockIntervalMs) {
+            lastClockMs = millis();
+            struct tm timeinfo;
+            if (getLocalTime(&timeinfo)) {
+                Serial.printf("Clock refresh (%d min) %02d:%02d — partial update\n",
+                              getFace1ClockRefreshMinutes(isNightTime()),
                               timeinfo.tm_hour, timeinfo.tm_min);
-                updateClockFacePartial(false);
-                partialCount++;
-                if (partialCount >= CLOCK_PARTIAL_FULL_EVERY) {
-                    Serial.println("Periodic full Face 1 redraw (ghosting cleanup)");
-                    showActiveFace();
-                    partialCount = 0;
-                }
+            } else {
+                Serial.printf("Clock refresh (%d min) — partial update\n",
+                              getFace1ClockRefreshMinutes(isNightTime()));
+            }
+            updateClockFacePartial(false);
+            partialCount++;
+            if (partialCount >= CLOCK_PARTIAL_FULL_EVERY) {
+                Serial.println("Periodic full Face 1 redraw (ghosting cleanup)");
+                showActiveFace();
+                partialCount = 0;
             }
         }
 
-        if (millis() - lastWeatherMs >= CLOCK_WEATHER_FETCH_MS) {
-            Serial.println("Hourly weather refresh — enabling WiFi");
+        unsigned long weatherIntervalMs = clockWeatherFetchIntervalMs();
+        if (millis() - lastWeatherMs >= weatherIntervalMs) {
+            int intervalMin = getFace1WeatherRefreshMinutes(isNightTime());
+            Serial.printf("Face 1 weather fetch (%d min, %s) — enabling WiFi\n",
+                          intervalMin, isNightTime() ? "night" : "day");
             lastWeatherMs = millis();
             if (connectWiFiStation()) {
                 preferences.begin("weather", true);
@@ -228,7 +294,7 @@ static void runClockFaceLoop() {
                         Serial.println("Weather unchanged — clock header only");
                         updateClockFacePartial(false);
                     }
-                    lastDrawnMinute = -1;  // force next minute redraw with fresh header time
+                    lastClockMs = 0;  // force next clock refresh on schedule
                 }
             } else {
                 Serial.println("Hourly WiFi connect failed — keeping previous weather");
@@ -370,29 +436,7 @@ void loop() {
 
         if (wakeup_reason == ESP_SLEEP_WAKEUP_UNDEFINED) {
             Serial.println("\n*** Manual wake detected (reset button or power on) ***");
-            Serial.println("*** Waiting 30 seconds for user interaction ***");
-            Serial.println("*** Tap bottom-right for CONFIG; rotary up/down to switch faces ***");
-
-            unsigned long startWait = millis();
-            const unsigned long waitDuration = USER_INTERACTION_TIMEOUT_MS;
-            unsigned long lastSerialUpdate = 0;
-
-            while (millis() - startWait < waitDuration) {
-                if (pollFaceControls()) {
-                    startWait = millis();
-                }
-
-                unsigned long remaining = (waitDuration - (millis() - startWait)) / 1000;
-                if (millis() - lastSerialUpdate >= 1000) {
-                    Serial.printf("Waiting for interaction... %lu seconds remaining (face %d)\n",
-                                  remaining, displayFace);
-                    lastSerialUpdate = millis();
-                }
-
-                delay(100);
-            }
-
-            Serial.println("*** Wait period ended ***\n");
+            runFaceSelectionWindow();
         } else {
             Serial.println("\n*** Automatic wake from timer — skipping interaction window ***");
             Serial.println("*** Waiting 3 seconds for display to refresh ***");
@@ -403,10 +447,11 @@ void loop() {
     }
 
     // Clock face: remain powered on with minute updates (no deep sleep)
-    if (displayFace == 1) {
+    while (displayFace == 1) {
         runClockFaceLoop();
-        // Returned after switching to weather face — fall through to sleep
-        hasWaited = true;
+        if (displayFace == 0) {
+            runFaceSelectionWindow();
+        }
     }
 
     if (displayFace != 0) {
@@ -415,6 +460,7 @@ void loop() {
         return;
     }
 
+    reloadNightModePref();
     unsigned long sleepTime = getRefreshInterval();
 
     preferences.begin("weather", true);

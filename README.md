@@ -1,41 +1,47 @@
 # PaperWeather-Calendar
 
-Weather and calendar dashboard for the classic **M5Paper v1.1** e-ink kit (ESP32, 4.7", 960×540). It is **not** for M5PaperS3.
+Weather and calendar dashboard for the classic **M5Paper v1.1** (ESP32, 4.7" e-ink, 960×540). This build targets the original M5Paper kit, not the M5PaperS3.
 
-**English UI only.** The Chinese display language and on-screen language toggle from the Paper S3 fork are not included.
-
-![Face 0 weather dashboard](M5PaperS3_Weather_Calendar_EN.png)
+The UI is English only. There is no on-screen language toggle.
 
 [![Arduino](https://img.shields.io/badge/Arduino-Compatible-brightgreen.svg)](https://www.arduino.cc/)
 [![PlatformIO](https://img.shields.io/badge/PlatformIO-Ready-orange.svg)](https://platformio.org/)
 [![ESP32](https://img.shields.io/badge/ESP32-M5Paper%20v1.1-blue.svg)](https://docs.m5stack.com/en/core/m5paper)
 
-## Features
+## What it does
 
-- **Two dashboard faces**
-  - **Face 0**: current weather, next 8 hours, next 3 days, and a calendar panel
-  - **Face 1**: large clock + date, weather summary, and a larger calendar panel
-- **Rotary face swap**: after a manual reset, within 30 seconds, rotate the side wheel up or down (`BtnA` / `BtnC`) to toggle faces; the choice is saved and reused on later wakes
-- **Calendar panel mode** (both faces): **Month Calendar** (local Sunday-start grid; today = black cell with white number) or **Google Calendar** (today’s ICS events)
-- **Web setup portal**: WiFi, location, calendar mode / ICS URL, temperature unit, refresh intervals, night mode
-- **Onboard SHT30**: local temperature and humidity when the sensor is available (falls back to weather API values otherwise)
-- **Power saving**: `M5.Power.timerSleep()` with separate day/night refresh intervals
-- **Open-Meteo weather API**: no API key required
+The device shows weather from [Open-Meteo](https://open-meteo.com/) (no API key) and a calendar panel in one of two layouts. Settings are stored in flash and survive reboot.
 
-## Hardware Compatibility
+### Face 0 — weather dashboard
+
+![Face 0 weather dashboard](weather_face.jpeg)
+
+Current conditions, an 8-hour chart, a 3-day forecast, and the calendar panel. After each update the device disconnects WiFi and enters deep sleep until the next scheduled refresh.
+
+### Face 1 — clock face
+
+![Face 1 clock face](clock_face.jpeg)
+
+Large time and date, a compact weather summary, and a larger calendar panel. It stays powered on while selected. The clock redraws on its own interval without WiFi. Weather data is fetched separately over WiFi when due.
+
+Both faces share the same calendar mode setting (month grid or Google Calendar events).
+
+## Hardware
 
 | Device | Supported |
 |--------|-----------|
-| **M5Paper v1.1** (SKU K049-B, classic ESP32) | Yes |
-| M5PaperS3 / other M5 boards | No |
+| M5Paper v1.1 (SKU K049-B) | Yes |
+| M5PaperS3 and other M5 boards | No |
 
-Also required: USB-C for programming/power, and **2.4 GHz** WiFi (ESP32 has no 5 GHz).
+You need 2.4 GHz WiFi. The ESP32 does not support 5 GHz.
 
-Libraries: **M5Unified**, **M5GFX**, and **M5Unit-ENV** (onboard SHT30). Do not use the deprecated M5EPD library.
+Libraries: **M5Unified**, **M5GFX**, **M5Unit-ENV** (onboard SHT30). Do not use the old M5EPD library.
 
 Product page: [M5Paper v1.1](https://shop.m5stack.com/products/m5paper-esp32-development-kit-v1-1-960x540-4-7-eink-display-235-ppi)
 
-## Build and Flash (PlatformIO)
+When the onboard SHT30 responds, local temperature and humidity are shown. If the sensor is unavailable, the display falls back to values from the weather API.
+
+## Build and flash
 
 ```bash
 git clone <this-repo>
@@ -45,58 +51,105 @@ pio run -e Paper --target upload
 pio device monitor --baud 115200
 ```
 
-`platformio.ini` uses `board = m5stack-fire` with `-DARDUINO_M5STACK_Paper` because `m5stack-paper` is missing from many PlatformIO installs. Flash size is 16MB with PSRAM enabled. If your PlatformIO package includes `m5stack-paper`, you can switch `board` to that name.
+`platformio.ini` uses `board = m5stack-fire` with `-DARDUINO_M5STACK_Paper` because `m5stack-paper` is missing from many PlatformIO installs. Flash is 16 MB with PSRAM enabled. If your PlatformIO install includes `m5stack-paper`, you can switch the board name.
 
-## First Setup
+## Configuration
 
-1. After boot (or when WiFi is missing), connect to WiFi **`PaperWeather-Calendar`**, password **`configure`**.
+Settings can be changed in two places:
+
+1. **On-device quick settings** — tap **[CFG]** in the bottom-right corner after a manual reset (see Controls below). Covers WiFi, location, calendar mode, refresh schedules, and night mode. Changes apply after **Save & Restart**.
+2. **Web setup portal** — connect to the device access point and open the setup page in a browser. Required for the Google Calendar ICS URL and opened automatically when WiFi credentials are missing or Google Calendar mode is selected without a URL.
+
+On the WiFi page of the on-device UI, **Web setup** starts the same portal without erasing other settings.
+
+### Web portal (first boot or ICS URL)
+
+1. Connect to WiFi network **`PaperWeather-Calendar`**, password **`configure`**.
 2. Open `http://192.168.4.1`.
-3. Enter WiFi, city (or coordinates), temperature unit, and refresh settings.
-4. Under **Calendar Panel**, choose **Month Calendar** (default) or **Google Calendar**.
-5. If Google Calendar is selected, paste an ICS URL (required for that mode only).
-6. Click **Save & Restart**.
+3. Set WiFi, location, temperature unit, refresh intervals, night mode, and calendar options.
+4. For Google Calendar mode, paste the ICS URL.
+5. Click **Save & Restart**.
 
-### Re-open configuration later
+The portal also opens on its own when the device has no saved WiFi or when Google Calendar is enabled but no ICS URL is stored.
 
-1. Press the **reset** button on the M5Paper.
-2. Within **30 seconds**, tap **[CFG]** in the bottom-right corner of the screen.
-3. Connect to the setup AP as above.
+### On-device settings pages
 
-To leave the config portal without saving, rotate the side wheel **up** (`BtnA`).
+After reset, tap **[CFG]** within 30 seconds. Pages:
 
-## Dashboard Faces
+| Page | Contents |
+|------|----------|
+| WiFi | Saved network, scan and connect wizard, link to web setup |
+| Location | City, optional coordinates, °F/°C |
+| Calendar | Month vs Google mode; ICS status (URL must be set via web) |
+| Schedule | Refresh intervals for both faces (see below) |
+| Night | Night mode on/off, start and end hour |
 
-After a **manual reset / power-on**, the device stays awake for 30 seconds:
+**Back** or rotary **up** (`BtnA`) exits without saving. **Save & Restart** writes preferences and reboots.
 
-- Tap **[CFG]** (bottom-right) to open setup.
-- Rotate the side wheel **up or down** (`BtnA` / `BtnC`, GPIO37 / GPIO39) to toggle between Face 0 and Face 1.
+On-device save does not overwrite an existing ICS URL. Set or change the URL through the web portal.
 
-The selected face is stored in Preferences and redrawn on the next weather refresh. The Face 1 clock is a **snapshot** at draw time (not a live ticking clock). Buttons are polled only during that post-reset window — not during deep sleep. While the config portal is open, `BtnA` only exits the portal (it does not change faces).
+## Controls
 
-Automatic RTC wakes skip the 30-second wait: they fetch data, draw the saved face, and sleep again.
+After a **manual reset or power-on**, the device stays awake for 30 seconds:
 
-## Calendar Panel
+- Tap **[CFG]** (bottom-right) to open settings.
+- Rotate the side wheel **up** or **down** (`BtnA` / `BtnC`, GPIO37 / GPIO39) to switch between Face 0 and Face 1. The choice is saved.
 
-- **Month Calendar** (default): current month as a Sunday-start grid (`S M T W T F S`). Out-of-month cells are blank. Today uses a black background with a white number. No ICS URL required.
-- **Google Calendar**: up to three of today’s events from an ICS feed. An ICS URL is required; if missing in this mode, the setup portal opens after WiFi connects.
+While settings or the web portal are open, `BtnA` is **Back** only; it does not change faces.
 
-## Google Calendar ICS URL
+Timer wakes (scheduled refresh) skip the 30-second window: the device fetches data if needed, draws the saved face, and continues its sleep or clock loop.
 
-1. Open Google Calendar → calendar settings → **Integrate calendar**.
-2. Copy **Secret address in iCal format** (private) or the public iCal address.
-3. Choose **Google Calendar** in the setup portal and paste the URL. It should contain `/calendar/ical/` and end with `/basic.ics`.
+## Refresh schedules
 
-`HTTP 404` usually means the URL is not a valid accessible ICS feed.
+Night mode, when enabled, switches each face to its night interval during the configured hours (default 22:00–05:00). When night mode is off, day intervals are always used.
 
-## Power / Sleep Notes
+Allowed values are fixed steps, not arbitrary minutes.
 
-- Sleep uses `M5.Power.timerSleep()` (RTC alarm + power off).
-- **Full power-off / RTC wake works on battery.** When powered over USB, the device may not fully shut down (M5Paper power design).
-- Validate overnight refresh cycles while running on battery.
+### Face 0 (weather dashboard)
+
+| Setting | Options (min) | Default day | Default night |
+|---------|---------------|-------------|---------------|
+| Weather refresh | 1, 5, 10, 15, 30, 60, 120, 240, 480 | 10 | 480 |
+
+Between refreshes the device sleeps with WiFi off.
+
+### Face 1 (clock face)
+
+Face 1 uses two independent timers:
+
+| Setting | Options (min) | Default day | Default night |
+|---------|---------------|-------------|---------------|
+| Clock display | 1, 5, 10, 15, 30, 60, 120, 240 | 1 | 15 |
+| Weather fetch | 15, 30, 60, 120, 240, 480 | 30 | 240 |
+
+The clock interval controls how often the time and date are redrawn on the e-ink panel. A longer interval at night reduces updates when the display is unlikely to be viewed. Weather fetch turns WiFi on only for its own interval.
+
+While Face 1 is active the device does not enter deep sleep. Switching back to Face 0 returns to the sleep cycle above.
+
+## Calendar panel
+
+**Month Calendar** (default): Sunday-start grid for the current month. Days outside the month are blank. Today is a black cell with a white numeral. No ICS URL required.
+
+**Google Calendar**: up to three of today's events from an ICS feed. Requires a valid ICS URL in the web portal.
+
+### Google Calendar ICS URL
+
+1. Google Calendar → calendar settings → **Integrate calendar**.
+2. Copy **Secret address in iCal format** or the public iCal address.
+3. In the web setup portal, choose **Google Calendar** and paste the URL. Valid URLs usually contain `/calendar/ical/` and end with `/basic.ics`.
+
+An HTTP 404 from the feed usually means the URL is wrong or not reachable from the device.
+
+## Power and sleep
+
+- Face 0 uses `M5.Power.timerSleep()` (RTC alarm, then power off).
+- Face 1 keeps the CPU running and polls buttons during the post-reset window only.
+- On battery, RTC wake and full power-off behave as intended. Over USB the board may not shut down completely; that is a limitation of the M5Paper power path.
+- Test overnight behaviour on battery if you rely on long night intervals.
 
 ## Attribution
 
-Based on [Bastelschlumpf's M5PaperWeather](https://github.com/Bastelschlumpf/M5PaperWeather), later adapted for M5Paper S3, and ported here to classic **M5Paper v1.1** with M5Unified/M5GFX and an English-only UI.
+Based on [Bastelschlumpf's M5PaperWeather](https://github.com/Bastelschlumpf/M5PaperWeather), adapted for M5Paper S3 elsewhere, and ported here to classic M5Paper v1.1 with M5Unified/M5GFX.
 
 ## License
 
@@ -104,6 +157,6 @@ MIT License — see `LICENSE`.
 
 ## Acknowledgments
 
-- [Bastelschlumpf](https://github.com/Bastelschlumpf) — original M5PaperWeather design
+- [Bastelschlumpf](https://github.com/Bastelschlumpf) — original M5PaperWeather
 - [Open-Meteo](https://open-meteo.com/) — weather data
-- [M5Stack](https://m5stack.com/) — M5Paper hardware and M5Unified / M5GFX
+- [M5Stack](https://m5stack.com/) — hardware and libraries
