@@ -30,8 +30,145 @@ static String normalizeCalendarMode(String mode) {
     return DEFAULT_CALENDAR_MODE;
 }
 
+void loadSettingsFromPreferences(WeatherSettings &settings) {
+    preferences.begin("weather", true);
+    settings.ssid = preferences.getString("ssid", "");
+    settings.password = preferences.getString("password", "");
+    settings.city = preferences.getString("city", DEFAULT_CITY);
+    settings.latitude = preferences.getString("latitude", "");
+    settings.longitude = preferences.getString("longitude", "");
+    settings.tempUnit = preferences.getString("tempunit", "F");
+    settings.calendarIcs = preferences.getString("calendar_ics", "");
+    settings.calendarMode = normalizeCalendarMode(
+        preferences.getString("calendar_mode", DEFAULT_CALENDAR_MODE));
+    settings.nightMode = preferences.getBool("nightmode", true);
+    settings.face0Day = preferences.getInt("face0_day", -1);
+    settings.face0Night = preferences.getInt("face0_night", -1);
+    settings.face1Day = preferences.getInt("face1_day", DEFAULT_FACE1_DAY_MIN);
+    settings.face1Night = preferences.getInt("face1_night", DEFAULT_FACE1_NIGHT_MIN);
+    settings.face1ClockDay = preferences.getInt("face1_clock_day", DEFAULT_FACE1_CLOCK_DAY_MIN);
+    settings.face1ClockNight = preferences.getInt("face1_clock_night", DEFAULT_FACE1_CLOCK_NIGHT_MIN);
+    if (settings.face0Day < 0) {
+        settings.face0Day = preferences.getInt("day_interval", DEFAULT_FACE0_DAY_MIN);
+    }
+    if (settings.face0Night < 0) {
+        settings.face0Night = preferences.getInt("night_interval", DEFAULT_FACE0_NIGHT_MIN);
+    }
+    settings.nightStart = preferences.getInt("night_start", NIGHT_START_HOUR);
+    settings.nightEnd = preferences.getInt("night_end", NIGHT_END_HOUR);
+    preferences.end();
+
+    settings.face0Day = normalizeRefreshMinutes(settings.face0Day, DEFAULT_FACE0_DAY_MIN);
+    settings.face0Night = normalizeRefreshMinutes(settings.face0Night, DEFAULT_FACE0_NIGHT_MIN);
+    settings.face1Day = normalizeFace1RefreshMinutes(settings.face1Day, DEFAULT_FACE1_DAY_MIN);
+    settings.face1Night = normalizeFace1RefreshMinutes(settings.face1Night, DEFAULT_FACE1_NIGHT_MIN);
+    settings.face1ClockDay = normalizeFace1ClockRefreshMinutes(settings.face1ClockDay, DEFAULT_FACE1_CLOCK_DAY_MIN);
+    settings.face1ClockNight = normalizeFace1ClockRefreshMinutes(settings.face1ClockNight, DEFAULT_FACE1_CLOCK_NIGHT_MIN);
+
+    if (settings.latitude.toFloat() == COORD_NOT_SET) {
+        settings.latitude = "";
+    }
+    if (settings.longitude.toFloat() == COORD_NOT_SET) {
+        settings.longitude = "";
+    }
+}
+
+String validateSettings(const WeatherSettings &settings, bool requireGoogleIcs) {
+    if (settings.ssid.length() == 0) {
+        return "WiFi SSID is required";
+    }
+    if (settings.city.length() == 0) {
+        return "City name is required";
+    }
+    if (requireGoogleIcs && settings.calendarMode == "google" && settings.calendarIcs.length() == 0) {
+        return "Google Calendar ICS URL is required";
+    }
+    if (settings.nightStart < 0 || settings.nightStart > 23 ||
+        settings.nightEnd < 0 || settings.nightEnd > 23) {
+        return "Night hours must be 0-23";
+    }
+    if ((settings.latitude.length() > 0) != (settings.longitude.length() > 0)) {
+        return "Set both lat and lon, or leave blank";
+    }
+    if (settings.latitude.length() > 0 && settings.longitude.length() > 0) {
+        float latVal = settings.latitude.toFloat();
+        float lonVal = settings.longitude.toFloat();
+        if (latVal < -90 || latVal > 90 || lonVal < -180 || lonVal > 180) {
+            return "Invalid coordinates";
+        }
+    }
+    return "";
+}
+
+void saveSettingsToPreferences(const WeatherSettings &settings, bool preserveCalendarIcs) {
+    WeatherSettings normalized = settings;
+    normalized.calendarMode = normalizeCalendarMode(normalized.calendarMode);
+    normalized.face0Day = normalizeRefreshMinutes(normalized.face0Day, DEFAULT_FACE0_DAY_MIN);
+    normalized.face0Night = normalizeRefreshMinutes(normalized.face0Night, DEFAULT_FACE0_NIGHT_MIN);
+    normalized.face1Day = normalizeFace1RefreshMinutes(normalized.face1Day, DEFAULT_FACE1_DAY_MIN);
+    normalized.face1Night = normalizeFace1RefreshMinutes(normalized.face1Night, DEFAULT_FACE1_NIGHT_MIN);
+    normalized.face1ClockDay = normalizeFace1ClockRefreshMinutes(normalized.face1ClockDay, DEFAULT_FACE1_CLOCK_DAY_MIN);
+    normalized.face1ClockNight = normalizeFace1ClockRefreshMinutes(normalized.face1ClockNight, DEFAULT_FACE1_CLOCK_NIGHT_MIN);
+
+    preferences.begin("weather", false);
+    preferences.putString("ssid", normalized.ssid);
+    preferences.putString("password", normalized.password);
+    preferences.putString("city", normalized.city);
+    preferences.putString("tempunit", normalized.tempUnit);
+    preferences.putString("calendar_mode", normalized.calendarMode);
+    if (!preserveCalendarIcs) {
+        preferences.putString("calendar_ics", normalized.calendarIcs);
+    }
+    preferences.putBool("nightmode", normalized.nightMode);
+    preferences.putInt("face0_day", normalized.face0Day);
+    preferences.putInt("face0_night", normalized.face0Night);
+    preferences.putInt("face1_day", normalized.face1Day);
+    preferences.putInt("face1_night", normalized.face1Night);
+    preferences.putInt("face1_clock_day", normalized.face1ClockDay);
+    preferences.putInt("face1_clock_night", normalized.face1ClockNight);
+    preferences.putInt("day_interval", normalized.face0Day);
+    preferences.putInt("night_interval", normalized.face0Night);
+    preferences.putInt("night_start", normalized.nightStart);
+    preferences.putInt("night_end", normalized.nightEnd);
+
+    if (normalized.latitude.length() > 0 && normalized.longitude.length() > 0) {
+        preferences.putString("latitude", normalized.latitude);
+        preferences.putString("longitude", normalized.longitude);
+    } else {
+        preferences.putString("latitude", String(COORD_NOT_SET));
+        preferences.putString("longitude", String(COORD_NOT_SET));
+    }
+    preferences.end();
+}
+
 static String refreshIntervalOptionsHtml(int selected) {
     const int opts[] = {1, 5, 10, 15, 30, 60, 120, 240, 480};
+    String html = "";
+    for (unsigned i = 0; i < sizeof(opts) / sizeof(opts[0]); i++) {
+        html += "<option value='" + String(opts[i]) + "'";
+        if (opts[i] == selected) {
+            html += " selected";
+        }
+        html += ">" + String(opts[i]) + " min</option>";
+    }
+    return html;
+}
+
+static String face1RefreshIntervalOptionsHtml(int selected) {
+    const int opts[] = {15, 30, 60, 120, 240, 480};
+    String html = "";
+    for (unsigned i = 0; i < sizeof(opts) / sizeof(opts[0]); i++) {
+        html += "<option value='" + String(opts[i]) + "'";
+        if (opts[i] == selected) {
+            html += " selected";
+        }
+        html += ">" + String(opts[i]) + " min</option>";
+    }
+    return html;
+}
+
+static String face1ClockRefreshIntervalOptionsHtml(int selected) {
+    const int opts[] = {1, 5, 10, 15, 30, 60, 120, 240};
     String html = "";
     for (unsigned i = 0; i < sizeof(opts) / sizeof(opts[0]); i++) {
         html += "<option value='" + String(opts[i]) + "'";
@@ -137,34 +274,26 @@ void startConfigPortal() {
     WebServer server(80);
 
     server.on("/", HTTP_GET, [&server]() {
-        preferences.begin("weather", true);
-        String currentSSID = preferences.getString("ssid", "");
-        String currentPassword = preferences.getString("password", "");
-        String currentCity = preferences.getString("city", DEFAULT_CITY);
-        String currentLat = preferences.getString("latitude", "");
-        String currentLon = preferences.getString("longitude", "");
-        String currentUnit = preferences.getString("tempunit", "F");
-        String currentCalendarIcs = preferences.getString("calendar_ics", "");
-        String currentCalendarMode = normalizeCalendarMode(
-            preferences.getString("calendar_mode", DEFAULT_CALENDAR_MODE));
-        bool currentNightMode = preferences.getBool("nightmode", true);
-        int face0Day = preferences.getInt("face0_day", -1);
-        int face0Night = preferences.getInt("face0_night", -1);
-        int face1Day = preferences.getInt("face1_day", DEFAULT_FACE1_DAY_MIN);
-        int face1Night = preferences.getInt("face1_night", DEFAULT_FACE1_NIGHT_MIN);
-        if (face0Day < 0) {
-            face0Day = preferences.getInt("day_interval", DEFAULT_FACE0_DAY_MIN);
-        }
-        if (face0Night < 0) {
-            face0Night = preferences.getInt("night_interval", DEFAULT_FACE0_NIGHT_MIN);
-        }
-        face0Day = normalizeRefreshMinutes(face0Day, DEFAULT_FACE0_DAY_MIN);
-        face0Night = normalizeRefreshMinutes(face0Night, DEFAULT_FACE0_NIGHT_MIN);
-        face1Day = normalizeRefreshMinutes(face1Day, DEFAULT_FACE1_DAY_MIN);
-        face1Night = normalizeRefreshMinutes(face1Night, DEFAULT_FACE1_NIGHT_MIN);
-        int currentNightStart = preferences.getInt("night_start", 22);
-        int currentNightEnd = preferences.getInt("night_end", 5);
-        preferences.end();
+        WeatherSettings current;
+        loadSettingsFromPreferences(current);
+
+        String currentSSID = current.ssid;
+        String currentPassword = current.password;
+        String currentCity = current.city;
+        String currentLat = current.latitude;
+        String currentLon = current.longitude;
+        String currentUnit = current.tempUnit;
+        String currentCalendarIcs = current.calendarIcs;
+        String currentCalendarMode = current.calendarMode;
+        bool currentNightMode = current.nightMode;
+        int face0Day = current.face0Day;
+        int face0Night = current.face0Night;
+        int face1Day = current.face1Day;
+        int face1Night = current.face1Night;
+        int face1ClockDay = current.face1ClockDay;
+        int face1ClockNight = current.face1ClockNight;
+        int currentNightStart = current.nightStart;
+        int currentNightEnd = current.nightEnd;
 
         bool modeIsGoogle = (currentCalendarMode == "google");
 
@@ -230,7 +359,8 @@ void startConfigPortal() {
             }
             html += "<br>Temperature: " + String(currentUnit == "C" ? "Celsius" : "Fahrenheit");
             html += "<br>Weather face: " + String(face0Day) + " / " + String(face0Night) + " min (day/night)";
-            html += "<br>Clock face: " + String(face1Day) + " / " + String(face1Night) + " min (day/night)";
+            html += "<br>Face 1 weather: " + String(face1Day) + " / " + String(face1Night) + " min (day/night)";
+            html += "<br>Face 1 clock: " + String(face1ClockDay) + " / " + String(face1ClockNight) + " min (day/night)";
             html += "<br>Calendar: " + String(modeIsGoogle ? "Google Calendar" : "Month Calendar");
             html += "<br>Night Mode: " + String(currentNightMode ? "ON" : "OFF");
             if (currentNightMode) {
@@ -290,15 +420,28 @@ void startConfigPortal() {
 
         html += "<div class='section'>";
         html += "<h3>Update Schedule</h3>";
-        html += "<div class='help'>Weather face uses deep sleep between updates. Clock face stays awake: the clock panel refreshes every minute with WiFi off; weather is re-fetched once per hour. Clock day/night values are reserved for future use.</div>";
+        html += "<h3>Weather face (Face 0)</h3>";
+        html += "<div class='help'>Face 0 sleeps between full-screen weather updates.</div>";
         html += "<label>Weather face — day:</label>";
         html += "<select name='face0_day'>" + refreshIntervalOptionsHtml(face0Day) + "</select>";
         html += "<label>Weather face — night:</label>";
         html += "<select name='face0_night'>" + refreshIntervalOptionsHtml(face0Night) + "</select>";
-        html += "<label>Clock face — day:</label>";
-        html += "<select name='face1_day'>" + refreshIntervalOptionsHtml(face1Day) + "</select>";
-        html += "<label>Clock face — night:</label>";
-        html += "<select name='face1_night'>" + refreshIntervalOptionsHtml(face1Night) + "</select>";
+        html += "<h3>Clock face (Face 1)</h3>";
+        html += "<div class='help'>Face 1 stays awake. The <strong>clock and date</strong> redraw on the interval below "
+                "(use a longer night interval to save battery). "
+                "<strong>Weather summary</strong> is fetched over WiFi separately.</div>";
+        html += "<label>Face 1 clock refresh — day:</label>";
+        html += "<select name='face1_clock_day'>" + face1ClockRefreshIntervalOptionsHtml(face1ClockDay) + "</select>";
+        html += "<div class='note'>Options: 1–240 min (default 1).</div>";
+        html += "<label>Face 1 clock refresh — night:</label>";
+        html += "<select name='face1_clock_night'>" + face1ClockRefreshIntervalOptionsHtml(face1ClockNight) + "</select>";
+        html += "<div class='note'>Options: 1–240 min (default 15).</div>";
+        html += "<label>Face 1 weather update — day:</label>";
+        html += "<select name='face1_day'>" + face1RefreshIntervalOptionsHtml(face1Day) + "</select>";
+        html += "<div class='note'>Options: 15–480 min (default 30). Does not affect clock tick.</div>";
+        html += "<label>Face 1 weather update — night:</label>";
+        html += "<select name='face1_night'>" + face1RefreshIntervalOptionsHtml(face1Night) + "</select>";
+        html += "<div class='note'>Options: 15–480 min (default 240). Does not affect clock tick.</div>";
         html += "</div>";
 
         html += "<div class='section'>";
@@ -322,46 +465,36 @@ void startConfigPortal() {
     });
 
     server.on("/save", HTTP_POST, [&server]() {
-        String ssid = server.arg("ssid");
-        String password = server.arg("password");
-        String city = server.arg("city");
-        String lat = server.arg("lat");
-        String lon = server.arg("lon");
-        String calendarIcs = server.arg("calendar_ics");
-        String calendarModeArg = normalizeCalendarMode(server.arg("calendar_mode"));
-        String tempUnit = server.arg("tempunit");
-        bool nightMode = server.arg("nightmode") == "1";
-        int face0Day = normalizeRefreshMinutes(server.arg("face0_day").toInt(), DEFAULT_FACE0_DAY_MIN);
-        int face0Night = normalizeRefreshMinutes(server.arg("face0_night").toInt(), DEFAULT_FACE0_NIGHT_MIN);
-        int face1Day = normalizeRefreshMinutes(server.arg("face1_day").toInt(), DEFAULT_FACE1_DAY_MIN);
-        int face1Night = normalizeRefreshMinutes(server.arg("face1_night").toInt(), DEFAULT_FACE1_NIGHT_MIN);
-        int nightStart = server.arg("night_start").toInt();
-        int nightEnd = server.arg("night_end").toInt();
+        WeatherSettings settings;
+        settings.ssid = server.arg("ssid");
+        settings.password = server.arg("password");
+        settings.city = server.arg("city");
+        settings.latitude = server.arg("lat");
+        settings.longitude = server.arg("lon");
+        settings.calendarIcs = server.arg("calendar_ics");
+        settings.calendarMode = normalizeCalendarMode(server.arg("calendar_mode"));
+        settings.tempUnit = server.arg("tempunit");
+        settings.nightMode = server.arg("nightmode") == "1";
+        settings.face0Day = normalizeRefreshMinutes(server.arg("face0_day").toInt(), DEFAULT_FACE0_DAY_MIN);
+        settings.face0Night = normalizeRefreshMinutes(server.arg("face0_night").toInt(), DEFAULT_FACE0_NIGHT_MIN);
+        settings.face1Day = normalizeFace1RefreshMinutes(server.arg("face1_day").toInt(), DEFAULT_FACE1_DAY_MIN);
+        settings.face1Night = normalizeFace1RefreshMinutes(server.arg("face1_night").toInt(), DEFAULT_FACE1_NIGHT_MIN);
+        settings.face1ClockDay = normalizeFace1ClockRefreshMinutes(server.arg("face1_clock_day").toInt(), DEFAULT_FACE1_CLOCK_DAY_MIN);
+        settings.face1ClockNight = normalizeFace1ClockRefreshMinutes(server.arg("face1_clock_night").toInt(), DEFAULT_FACE1_CLOCK_NIGHT_MIN);
+        settings.nightStart = server.arg("night_start").toInt();
+        settings.nightEnd = server.arg("night_end").toInt();
 
-        if (ssid.length() == 0 || city.length() == 0) {
+        String validationError = validateSettings(settings, true);
+        if (validationError.length() > 0) {
             server.send(400, "text/html",
-                "<html><body><h1>Error</h1><p>SSID and City are required!</p>"
+                "<html><body><h1>Error</h1><p>" + validationError + "</p>"
                 "<a href='/'>Go Back</a></body></html>");
             return;
         }
 
-        if (calendarModeArg == "google" && calendarIcs.length() == 0) {
-            server.send(400, "text/html",
-                "<html><body><h1>Error</h1><p>Google Calendar ICS URL is required!</p>"
-                "<a href='/'>Go Back</a></body></html>");
-            return;
-        }
-
-        if (nightStart < 0 || nightStart > 23 || nightEnd < 0 || nightEnd > 23) {
-            server.send(400, "text/html",
-                "<html><body><h1>Error</h1><p>Night hours must be 0-23!</p>"
-                "<a href='/'>Go Back</a></body></html>");
-            return;
-        }
-
-        if (lat.length() > 0 && lon.length() > 0) {
-            float latVal = lat.toFloat();
-            float lonVal = lon.toFloat();
+        if (settings.latitude.length() > 0 && settings.longitude.length() > 0) {
+            float latVal = settings.latitude.toFloat();
+            float lonVal = settings.longitude.toFloat();
             if (latVal < -90 || latVal > 90 || lonVal < -180 || lonVal > 180) {
                 server.send(400, "text/html",
                     "<html><body><h1>Error</h1><p>Invalid coordinates! "
@@ -371,33 +504,7 @@ void startConfigPortal() {
             }
         }
 
-        preferences.begin("weather", false);
-        preferences.putString("ssid", ssid);
-        preferences.putString("password", password);
-        preferences.putString("city", city);
-        preferences.putString("tempunit", tempUnit);
-        preferences.putString("calendar_mode", calendarModeArg);
-        preferences.putString("calendar_ics", calendarIcs);
-        preferences.putBool("nightmode", nightMode);
-        preferences.putInt("face0_day", face0Day);
-        preferences.putInt("face0_night", face0Night);
-        preferences.putInt("face1_day", face1Day);
-        preferences.putInt("face1_night", face1Night);
-        // Keep legacy keys in sync for older code paths
-        preferences.putInt("day_interval", face0Day);
-        preferences.putInt("night_interval", face0Night);
-        preferences.putInt("night_start", nightStart);
-        preferences.putInt("night_end", nightEnd);
-
-        if (lat.length() > 0 && lon.length() > 0) {
-            preferences.putString("latitude", lat);
-            preferences.putString("longitude", lon);
-        } else {
-            preferences.putString("latitude", String(COORD_NOT_SET));
-            preferences.putString("longitude", String(COORD_NOT_SET));
-        }
-
-        preferences.end();
+        saveSettingsToPreferences(settings, false);
 
         server.send(200, "text/html",
             "<html><head><meta http-equiv='refresh' content='3;url=/restart'></head>"

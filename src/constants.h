@@ -18,20 +18,43 @@
 // Refresh Intervals (minutes) — per-face defaults
 #define DEFAULT_FACE0_DAY_MIN 10
 #define DEFAULT_FACE0_NIGHT_MIN 480
-#define DEFAULT_FACE1_DAY_MIN 1
-#define DEFAULT_FACE1_NIGHT_MIN 15
+#define DEFAULT_FACE1_DAY_MIN 30      // Face 1 weather fetch interval (day)
+#define DEFAULT_FACE1_NIGHT_MIN 240   // Face 1 weather fetch interval (night)
+#define DEFAULT_FACE1_CLOCK_DAY_MIN 1     // Face 1 clock display refresh (day)
+#define DEFAULT_FACE1_CLOCK_NIGHT_MIN 15  // Face 1 clock display refresh (night)
 #define REFRESH_INTERVAL_DAY_MS (DEFAULT_FACE0_DAY_MIN * 60000UL)
 #define REFRESH_INTERVAL_NIGHT_MS (DEFAULT_FACE0_NIGHT_MIN * 60000UL)
 #define NIGHT_START_HOUR 22
 #define NIGHT_END_HOUR 5
 #define CLOCK_PARTIAL_FULL_EVERY 30  // full Face 1 redraw every N minute ticks (ghosting)
-#define CLOCK_WEATHER_FETCH_MS (60UL * 60UL * 1000UL)  // hourly weather while clock stays awake
 #define CLOCK_LOOP_POLL_MS 200
 
 // User Interaction
 #define USER_INTERACTION_TIMEOUT_MS 30000   // 30 seconds to tap screen before sleep
 #define CFG_BUTTON_TOUCH_WIDTH 100          // Width of touchable CFG area
 #define CFG_BUTTON_TOUCH_HEIGHT 40          // Height of touchable CFG area
+
+// On-device settings UI layout
+#define SETTINGS_HEADER_H 56
+#define SETTINGS_FOOTER_H 84
+#define SETTINGS_CONTENT_TOP SETTINGS_HEADER_H
+#define SETTINGS_CONTENT_BOTTOM (SCREEN_HEIGHT - SETTINGS_FOOTER_H)
+#define SETTINGS_LIST_ROW_H 52
+#define SETTINGS_PAGE_COUNT 5
+#define SETTINGS_KEY_H 34
+#define SETTINGS_MARGIN 16
+#define SETTINGS_BTN_H 48
+#define SETTINGS_FONT 2
+#define SETTINGS_FONT_PAGE 3
+#define SETTINGS_FONT_SCHEDULE 2
+#define SETTINGS_FONT_SMALL 2
+#define SETTINGS_LINE_H 28
+#define SETTINGS_LINE_H_PAGE 34
+#define SETTINGS_LINE_H_SCHEDULE 26
+#define SETTINGS_NAV_W 150
+#define SETTINGS_INPUT_H 44
+#define SETTINGS_KB_FOOTER_H 52
+#define SETTINGS_SCAN_FOOTER_H 56
 
 // Weather Data Limits
 #define MAX_HOURLY 8

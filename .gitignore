@@ -5,6 +5,7 @@
 .piolibdeps/
 .clang_complete
 .gcc-flags.json
+.cursor/
 
 # Build artifacts
 *.o
