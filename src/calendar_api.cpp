@@ -6,6 +6,7 @@
 #include <time.h>
 
 String calendarEvents[MAX_CALENDAR_EVENTS];
+bool calendarEventIsTomorrow[MAX_CALENDAR_EVENTS];
 int calendarEventCount = 0;
 bool calendarFetchOk = true;
 String calendarStatusMessage = "";
@@ -150,6 +151,21 @@ static void civilFromDays(long z, int &year, unsigned &month, unsigned &day) {
 
 static String twoDigits(int value) {
     return value < 10 ? "0" + String(value) : String(value);
+}
+
+static String nextDateString(const String &date) {
+    if (date.length() != 8) {
+        return "";
+    }
+
+    int year = date.substring(0, 4).toInt();
+    unsigned month = date.substring(4, 6).toInt();
+    unsigned day = date.substring(6, 8).toInt();
+    int nextYear;
+    unsigned nextMonth;
+    unsigned nextDay;
+    civilFromDays(daysFromCivil(year, month, day) + 1, nextYear, nextMonth, nextDay);
+    return String(nextYear) + twoDigits(nextMonth) + twoDigits(nextDay);
 }
 
 static bool parseIcsDateTime(String value, String &localDate, String &localTime, bool &dateOnly) {
@@ -301,7 +317,39 @@ static bool rruleIncludesToday(const String &rrule, const String &dtstart, const
     return false;
 }
 
-static bool eventIncludesToday(const String &dtstart, const String &dtend, const String &rrule, const String &today) {
+static long dateTimeToMinutes(const String &date, const String &time) {
+    if (date.length() < 8) {
+        return -1;
+    }
+
+    int year = date.substring(0, 4).toInt();
+    unsigned month = date.substring(4, 6).toInt();
+    unsigned day = date.substring(6, 8).toInt();
+    int hour = time.length() >= 2 ? time.substring(0, 2).toInt() : 0;
+    int minute = time.length() >= 5 ? time.substring(3, 5).toInt() : 0;
+    return daysFromCivil(year, month, day) * 1440L + hour * 60L + minute;
+}
+
+static int localHour() {
+    time_t now = time(nullptr);
+    if (now <= 0) {
+        return 0;
+    }
+
+    int utcOffsetSeconds = currentWeather.utcOffsetSeconds != 0 ? currentWeather.utcOffsetSeconds : (TIMEZONE_OFFSET_HOURS * 3600);
+    now += utcOffsetSeconds;
+    struct tm timeinfo;
+    gmtime_r(&now, &timeinfo);
+    return timeinfo.tm_hour;
+}
+
+static bool overlapsCalendarWindow(long eventStart, long eventEnd, long windowStart, long windowEnd) {
+    return eventStart < windowEnd && eventEnd > windowStart;
+}
+
+static bool eventOverlapsCalendarWindow(const String &dtstart, const String &dtend, const String &rrule,
+                                        const String &today, const String &tomorrow,
+                                        long windowStart, long windowEnd, bool &isTomorrow) {
     String startDate;
     String startTime;
     bool startDateOnly = false;
@@ -309,33 +357,38 @@ static bool eventIncludesToday(const String &dtstart, const String &dtend, const
         return false;
     }
 
-    if (rruleIncludesToday(rrule, startDate, today)) {
-        return true;
-    }
-
-    if (dtend.length() == 0) {
-        return startDate == today;
-    }
-
     String endDate;
     String endTime;
     bool endDateOnly = false;
-    if (!parseIcsDateTime(dtend, endDate, endTime, endDateOnly)) {
-        return startDate == today;
+    bool hasEnd = dtend.length() > 0 && parseIcsDateTime(dtend, endDate, endTime, endDateOnly);
+    long originalStart = dateTimeToMinutes(startDate, startTime);
+    long originalEnd = hasEnd ? dateTimeToMinutes(endDate, endTime) : originalStart + (startDateOnly ? 1440L : 60L);
+    if (originalEnd <= originalStart) {
+        originalEnd = originalStart + (startDateOnly ? 1440L : 60L);
     }
 
-    int todayDay = dateToEpochDay(today);
-    int startDay = dateToEpochDay(startDate);
-    int endDay = dateToEpochDay(endDate);
-    if (todayDay < 0 || startDay < 0 || endDay < 0) {
-        return startDate == today;
+    if (rrule.length() == 0) {
+        if (!overlapsCalendarWindow(originalStart, originalEnd, windowStart, windowEnd)) {
+            return false;
+        }
+        isTomorrow = startDate == tomorrow;
+        return true;
     }
 
-    if (endDateOnly) {
-        return todayDay >= startDay && todayDay < endDay;
+    const String dates[] = {today, tomorrow};
+    const long duration = originalEnd - originalStart;
+    for (int i = 0; i < 2; ++i) {
+        if (!rruleIncludesToday(rrule, startDate, dates[i])) {
+            continue;
+        }
+        long occurrenceStart = dateTimeToMinutes(dates[i], startTime);
+        long occurrenceEnd = occurrenceStart + duration;
+        if (overlapsCalendarWindow(occurrenceStart, occurrenceEnd, windowStart, windowEnd)) {
+            isTomorrow = i == 1;
+            return true;
+        }
     }
-
-    return todayDay >= startDay && todayDay <= endDay;
+    return false;
 }
 
 static void clearCalendarEvents() {
@@ -344,6 +397,7 @@ static void clearCalendarEvents() {
     calendarEventCount = 0;
     for (int i = 0; i < MAX_CALENDAR_EVENTS; i++) {
         calendarEvents[i] = "";
+        calendarEventIsTomorrow[i] = false;
     }
 }
 
@@ -413,6 +467,12 @@ bool fetchCalendarData(const String &icsUrl) {
         return false;
     }
 
+    String tomorrow = nextDateString(today);
+    long todayStart = dateTimeToMinutes(today, "");
+    bool afternoonWindow = localHour() >= 12;
+    long windowStart = todayStart + (afternoonWindow ? 12 * 60L : 0);
+    long windowEnd = todayStart + (afternoonWindow ? 36 * 60L : 24 * 60L);
+
     bool inEvent = false;
     String dtstart = "";
     String dtend = "";
@@ -433,9 +493,12 @@ bool fetchCalendarData(const String &icsUrl) {
         }
 
         if (line == "END:VEVENT") {
-            bool isToday = eventIncludesToday(dtstart, dtend, rrule, today);
-            if (inEvent && isToday && summary.length() > 0) {
+            bool isTomorrow = false;
+            bool isInWindow = eventOverlapsCalendarWindow(dtstart, dtend, rrule, today, tomorrow,
+                                                          windowStart, windowEnd, isTomorrow);
+            if (inEvent && isInWindow && summary.length() > 0) {
                 calendarEvents[calendarEventCount++] = eventTimeLabel(dtstart) + " " + cleanSummary(summary);
+                calendarEventIsTomorrow[calendarEventCount - 1] = isTomorrow;
             }
             inEvent = false;
             continue;
@@ -456,7 +519,7 @@ bool fetchCalendarData(const String &icsUrl) {
         }
     }
 
-    Serial.printf("Calendar events today: %d\n", calendarEventCount);
-    calendarStatusMessage = calendarEventCount == 0 ? "No events today" : "OK";
+    Serial.printf("Calendar events in display window: %d\n", calendarEventCount);
+    calendarStatusMessage = calendarEventCount == 0 ? "No events in display window" : "OK";
     return true;
 }

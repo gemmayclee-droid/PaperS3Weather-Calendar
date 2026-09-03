@@ -660,14 +660,15 @@ void drawCalendarEvents(int x, int y, int dx, int dy) {
     }
 
     if (calendarEventCount == 0) {
-        canvas.drawString(labelText("No events today", "今日暫無行程", "今日暂无行程"), x + 14, y + 20);
+        canvas.drawString(labelText("No events in this period", "這段時間暫無行程", "这段时间暂无行程"), x + 14, y + 20);
         return;
     }
 
     int lineY = y + 14;
     int maxTextWidth = dx - 28;
     for (int i = 0; i < calendarEventCount; i++) {
-        drawStringMixedChinese(fitTextMixedChinese(calendarEvents[i], maxTextWidth), x + 14, lineY);
+        String prefix = calendarEventIsTomorrow[i] ? String(labelText("Tomorrow ", "明日 ", "明天 ")) : "";
+        drawStringMixedChinese(fitTextMixedChinese(prefix + calendarEvents[i], maxTextWidth), x + 14, lineY);
         lineY += 32;
     }
 }
